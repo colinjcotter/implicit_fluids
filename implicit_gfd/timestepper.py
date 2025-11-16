@@ -1,5 +1,5 @@
 from firedrake.petsc import PETSc
-from state.py import get_state
+from models.py import get_model
 from irksome import GalerkinTimeStepper, MeshConstant
 
 opts = PETSc.Options()
