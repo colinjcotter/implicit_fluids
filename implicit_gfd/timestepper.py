@@ -10,6 +10,7 @@ model_variant = opts.getString('model_variant', 'G')
 model = get_model(model_type, model_variant)
 
 MC = MeshConstant(model.mesh)
+dt = opts.getScalar('model_dt', 1.0)
 dT = MC.Constant(dt)
 t = MC.Constant(0.)
 
