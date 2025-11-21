@@ -131,3 +131,16 @@ class GSWEModel(BaseModel):
         eqn += inner(dG, Dt(G))*dx
         eqn += inner(dG, u*div(G) - H)*dx
         self._eqn = eqn
+
+def get_model(opts):
+    model_type = opts.getString('type', 'swe')
+    model_variant = opts.getString('variant', 'G')
+
+    if model_type == 'swe':
+        if model_variant == 'G':
+            model = GSWEModel()
+        else:
+            raise NotImplementedError, 'variant ='+model_variant
+    else:
+        raise NotImplementedError, 'type='+model_type
+    return model
