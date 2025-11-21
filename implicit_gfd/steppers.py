@@ -1,4 +1,5 @@
 from firedrake.petsc import PETSc
+from irksome import GalerkinTimeStepper, MeshConstant
 
 def get_stepper(opts):
     timestepper = opts.getString('time_method', 'galerkin')
@@ -20,5 +21,8 @@ def get_stepper(opts):
     else:
         raise NotImplementedError, 'timestepper', timestepper
 
+    dT = MC.Constant(dt)
+    t = MC.Constant(0.)
+    
     return TimeStepper(model.eqn, method, t, dT, model.U0,
-                       options_prefix="stepper")
+                       options_prefix="stepper"), dt, t
