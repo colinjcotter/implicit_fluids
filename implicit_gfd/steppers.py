@@ -21,6 +21,7 @@ def get_stepper(opts):
     else:
         raise NotImplementedError, 'timestepper', timestepper
 
+    dt = opts.getScalar('dt', 100.0)
     dT = MC.Constant(dt)
     t = MC.Constant(0.)
     

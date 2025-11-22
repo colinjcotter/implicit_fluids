@@ -15,6 +15,7 @@ class BaseModel(object, metaclass=abc.ABC):
         self.mesh = get_mesh()
         self.allocate()
         self.build_eqn()
+        ic_opts = PETSc.Options("model_")
         set_initial_condition(self)
         
     @abc.abstractmethod
@@ -67,9 +68,9 @@ class GSWEModel(BaseModel):
             Qdegree = degree - 1
             Qfamily = "DG"
         else:
-            raise NotImplementedError, 'family', family
+            raise NotImplementedError('family '+family)
         Q = FunctionSpace(mesh, Qfamily, Qdegree)
-        W = V * V #  u, G
+        W = VectorFunctionSpace(mesh, family, degree)
         self._U0 = Function(W)
         self.W = W
         self.b = fd.Function(Q, name="Topography")
@@ -77,8 +78,11 @@ class GSWEModel(BaseModel):
     def build_eqn(self):
         mesh = self.mesh
         W = self.W
-        du, dG = TestFunctions(W)
-        u, G = fd.split(self._U0)
+        dU = TestFunction(W)
+        du = dU[0, :]
+        dG = dG[1, :]
+        u = self._U0[0, :]
+        G = self._U0[1, :]
 
         x = fd.SpatialCoordinate(mesh)
         cx, cy, cz = x
@@ -140,7 +144,7 @@ def get_model(opts):
         if model_variant == 'G':
             model = GSWEModel()
         else:
-            raise NotImplementedError, 'variant ='+model_variant
+            raise NotImplementedError('variant ='+model_variant)
     else:
-        raise NotImplementedError, 'type='+model_type
+        raise NotImplementedError('type='+model_type)
     return model
