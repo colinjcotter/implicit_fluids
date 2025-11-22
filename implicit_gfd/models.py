@@ -1,5 +1,5 @@
 import abc
-from ics import set_initial_conditions, get_mesh
+from ics import get_mesh, get_initial_conditions
 from firedrake.petsc import PETSc
 import firedrake as fd
 from irksome import Dt, MeshConstant
@@ -15,14 +15,20 @@ class BaseModel(object, metaclass=abc.ABC):
         self.mesh = get_mesh()
         self.allocate()
         self.build_eqn()
-        ic_opts = PETSc.Options("model_")
-        set_initial_condition(self)
+        self.set_initial_condition()
         
     @abc.abstractmethod
     def allocate(self):
         """
         Allocate U0 and any Function coefficients
         required in the equation system.
+        """
+        pass
+
+    @abc.abstractmethod
+    def set_initial_conditions(self):
+        """
+        Set initial conditions and any coefficients.
         """
         pass
 
@@ -50,30 +56,45 @@ class BaseModel(object, metaclass=abc.ABC):
         """
         pass
 
-
-class GSWEModel(BaseModel):
+class BaseSWEModel(BaseModel):
     """
-    Implicit the shallow water model using the G formulation.
+    Base class for shallow water models.
     """
-    super().__init__()
+    def __init__(self):
+        super().__init__(self)
 
     def allocate(self):
         mesh = self.mesh
         opts = PETSc.Options()
-        family = opts.getString('functionspaces_family', 'BDM')
-        degree = opts.getInt('functionspaces_degree', 2)
+        self.family = opts.getString('functionspaces_family', 'BDM')
+        self.degree = opts.getInt('functionspaces_degree', 2)
 
-        V = FunctionSpace(mesh, family, degree)
+        self.V = FunctionSpace(mesh, self.family, self.degree)
         if family == 'BDM':
-            Qdegree = degree - 1
-            Qfamily = "DG"
+            self.Qdegree = degree - 1
+            self.Qfamily = "DG"
         else:
-            raise NotImplementedError('family '+family)
-        Q = FunctionSpace(mesh, Qfamily, Qdegree)
-        W = VectorFunctionSpace(mesh, family, degree)
+            raise NotImplementedError('family '+self.family)
+        self.Q = FunctionSpace(mesh, self.Qfamily, self.Qdegree)
+
+        # Initial condition fields and coefficients
+        self.u0 = Function(V)
+        self.D0 = Function(Q)
+        self.b = fd.Function(Q, name="Topography")
+
+
+class GSWEModel(BaseSWEModel):
+    """
+    Implicit the shallow water model using the G formulation.
+    """
+    def __init__(self):
+        super().__init__(self)
+
+    def allocate(self):
+        super().allocate(self)
+        W = VectorFunctionSpace(self.mesh, self.family, self.degree)
         self._U0 = Function(W)
         self.W = W
-        self.b = fd.Function(Q, name="Topography")
 
     def build_eqn(self):
         mesh = self.mesh
@@ -136,6 +157,12 @@ class GSWEModel(BaseModel):
         eqn += inner(dG, u*div(G) - H)*dx
         self._eqn = eqn
 
+    def set_initial_conditions(self):
+        # First we get b, u0 and D0, then
+        # solve for G and insert into U0
+        ic_opts = PETSc.GetOptions("ics_")
+        get_initial_conditions(ic_opts, u=u0, D=D0, b=b)
+        
 def get_model(opts):
     model_type = opts.getString('type', 'swe')
     model_variant = opts.getString('variant', 'G')
