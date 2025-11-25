@@ -8,11 +8,12 @@ def both(u):
     return 2*fd.avg(u)
 
 class BaseModel(object, metaclass=abc.ABC):
-    def __init__(self):
+    def __init__(self, testcase):
         """
         Model base class for implicit fluids.
         """
-        self.mesh = get_mesh()
+        self.mesh = testcase.get_mesh()
+        self.testcase = testcase
         self.allocate()
         self.build_eqn()
         self.set_initial_condition()
@@ -60,8 +61,6 @@ class BaseSWEModel(BaseModel):
     """
     Base class for shallow water models.
     """
-    def __init__(self):
-        super().__init__(self)
 
     def allocate(self):
         mesh = self.mesh
@@ -87,9 +86,6 @@ class GSWEModel(BaseSWEModel):
     """
     Implicit the shallow water model using the G formulation.
     """
-    def __init__(self):
-        super().__init__(self)
-
     def allocate(self):
         super().allocate(self)
         W = VectorFunctionSpace(self.mesh, self.family, self.degree)
@@ -109,15 +105,10 @@ class GSWEModel(BaseSWEModel):
         cx, cy, cz = x
         
         # Earth parameters
-        opts = PETSc.Options()
-        R0 = opts.GetScalar("model_R0", 6371220.)
-        Omega = opts.GetScalar("model_Omega", 7.292e-5)
-        Omega = fd.Constant(Omega)
-        f = 2*Omega*cz/fd.Constant(R0)
-        g = opts.GetScalar("model_g", 9.8)
-        g = fd.Constant(g)
-        H = opts.GetScalar("model_H", 5960.)
-        H = fd.Constant(H)
+        Omega = fd.Constant(testcase.Omega)
+        f = 2*Omega*cz/fd.Constant(testcase.R0)
+        g = fd.Constant(testcase.g)
+        H = fd.Constant(testcase.H)
 
         b = self.b
         U0 = self._U0
@@ -140,8 +131,8 @@ class GSWEModel(BaseSWEModel):
             return cross(outward_normals, u)
 
         # u equation
-        upwind = opts.hasName("model_upwind")
-        if upwind:
+        centred = opts.hasName("model_centred")
+        if centred:
             Upwind = 0.5
         else:
             Upwind = 0.5 * (sign(dot(u, n)) + 1)
