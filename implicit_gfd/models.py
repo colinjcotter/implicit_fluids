@@ -3,6 +3,7 @@ from ics import get_mesh, get_initial_conditions
 from firedrake.petsc import PETSc
 import firedrake as fd
 from irksome import Dt, MeshConstant
+from math import fabs
 
 def both(u):
     return 2*fd.avg(u)
@@ -17,7 +18,7 @@ class BaseModel(object, metaclass=abc.ABC):
         self.allocate()
         self.build_eqn()
         self.set_initial_condition()
-        
+
     @abc.abstractmethod
     def allocate(self):
         """
@@ -95,7 +96,7 @@ class GSWEModel(BaseSWEModel):
     def build_eqn(self):
         mesh = self.mesh
         W = self.W
-        dU = TestFunction(W)
+        dU = fd.TestFunction(W)
         du = dU[0, :]
         dG = dG[1, :]
         u = self._U0[0, :]
@@ -109,7 +110,7 @@ class GSWEModel(BaseSWEModel):
         f = 2*Omega*cz/fd.Constant(testcase.R0)
         g = fd.Constant(testcase.g)
         H = fd.Constant(testcase.H)
-
+        self.H = H
         b = self.b
         U0 = self._U0
         n = fd.FacetNormal(mesh)
@@ -118,9 +119,9 @@ class GSWEModel(BaseSWEModel):
         # G_t + u*(div(G)-H) = 0
         # therefore
         # D_t = -div(G_t) = div(u*(div(G)-H)) = -div(u*D)
-        
+        # ie D_t + div(u*D) = 0
         F = Dt(G)
-        D = H - div(G)
+        D = H - fd.div(G)
         ubar = F/D
 
         from firedrake import cross, inner, dx, dot, grad, \
@@ -144,16 +145,40 @@ class GSWEModel(BaseSWEModel):
 
         # G equation
         # G_t + u*(div(G)-H) = 0
-        eqn += inner(dG, Dt(G))*dx
-        eqn += inner(dG, u*div(G) - H)*dx
+        eqn += fd.inner(dG, Dt(G))*fd.dx
+        eqn += fd.inner(dG, u*div(G) - H)*fd.dx
         self._eqn = eqn
 
     def set_initial_conditions(self):
-        # First we get b, u0 and D0, then
-        # solve for G and insert into U0
-        ic_opts = PETSc.GetOptions("ics_")
-        get_initial_conditions(ic_opts, u=u0, D=D0, b=b)
-        
+        self.testcase.set_ics(self)
+        u, G = self._U0.subfunctions
+        u.assign(self.u0)
+        # Elliptic problem to get G st D = H - div(G)
+        WG = self.V * self.Q
+        One = fd.Function(self.Q).assign(1.0)
+        H = fd.assemble(self.D0*fd.dx)/fd.assemble(One*fd.dx)
+        self.H.assign(H)
+        H = self.H
+        uG, phi = fd.TrialFunctions(WG)
+        v, q = fd.TestFunctions(WG)
+        eqn = (fd.inner(uG, v) + fd.div(v)*phi
+               + q*(fd.div(uG) - H + self.D0)*fd.dx
+        shift_J = fd.lhs(eqn) + q*phi*fd.dx
+        params = {
+            'ksp_type': 'gmres',
+            'pc_type': 'lu',
+            'pc_factor_mat_solver_type': 'mumps',
+        }
+        v_basis = fd.VectorSpaceBasis(constant=True)
+        nullspace = fd.MixedVectorSpaceBasis(WG, [WG.sub(0), v_basis])
+        UG = fd.Function(WG)
+        bcs = [fd.DirichletBC(WG, fd.Constant(0.), "on_boundary")]
+        fd.solve(lhs(eqn) == rhs(eqn), UG, bcs=bcs,
+                 aP = shift_J, nullspace=nullspace)
+        G.assign(uG)
+        assert fabs(fd.assemble((D + fd.div(G) - H)*fd.dx)/
+                    fd.assemble(One*fd.dx)) < 1.0e-7
+
 def get_model(opts):
     model_type = opts.getString('type', 'swe')
     model_variant = opts.getString('variant', 'G')
