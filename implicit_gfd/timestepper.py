@@ -16,7 +16,7 @@ nsteps = int(tmax/dt)
 assert fabs(nsteps*dt - tmax) < 1.0e-6*dt
 
 stepper_opts = PETSc.Options("stepper_")
-stepper, dt, t = get_stepper(stepper_opts)
+stepper, dt, t = get_stepper(model, stepper_opts)
 
 for step in ProgressBar("Timestep").iter(range(nsteps)):
     stepper.advance()

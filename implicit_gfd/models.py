@@ -93,7 +93,7 @@ class GSWEModel(BaseSWEModel):
     """
     def allocate(self):
         super().allocate()
-        W = fd.VectorFunctionSpace(self.mesh, self.family, self.degree)
+        W = fd.VectorFunctionSpace(self.mesh, self.family, self.degree, dim=2)
         self._U0 = fd.Function(W)
         self.W = W
 
@@ -189,7 +189,7 @@ class GSWEModel(BaseSWEModel):
                  Jp = shift_J, nullspace=nullspace)
         uG, _ = UG.subfunctions
         G.assign(uG)
-        assert fabs(fd.assemble((D + fd.div(G) - H)*fd.dx)/
+        assert fabs(fd.assemble((self.D0 + fd.div(G) - H)*fd.dx)/
                     fd.assemble(One*fd.dx)) < 1.0e-7
 
 def get_model(opts):
