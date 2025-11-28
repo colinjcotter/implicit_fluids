@@ -1,23 +1,24 @@
 import abc
-from ics import get_mesh, get_initial_conditions
 from firedrake.petsc import PETSc
 import firedrake as fd
 from irksome import Dt, MeshConstant
 from math import fabs
+from testcases import get_testcase
 
 def both(u):
     return 2*fd.avg(u)
 
-class BaseModel(object, metaclass=abc.ABC):
-    def __init__(self, testcase):
+class BaseModel:
+    def __init__(self, testcase, opts):
         """
         Model base class for implicit fluids.
         """
         self.mesh = testcase.get_mesh()
         self.testcase = testcase
+        self.opts = opts
         self.allocate()
         self.build_eqn()
-        self.set_initial_condition()
+        self.set_initial_conditions()
 
     @abc.abstractmethod
     def allocate(self):
@@ -34,6 +35,7 @@ class BaseModel(object, metaclass=abc.ABC):
         """
         pass
 
+    @abc.abstractmethod
     def build_eqn(self):
         """
         Construct the equation system and boundary conditions.
@@ -62,25 +64,27 @@ class BaseSWEModel(BaseModel):
     """
     Base class for shallow water models.
     """
-
+    
     def allocate(self):
         mesh = self.mesh
         opts = PETSc.Options()
         self.family = opts.getString('functionspaces_family', 'BDM')
         self.degree = opts.getInt('functionspaces_degree', 2)
 
-        self.V = FunctionSpace(mesh, self.family, self.degree)
-        if family == 'BDM':
-            self.Qdegree = degree - 1
+        self.V = fd.FunctionSpace(mesh, self.family, self.degree)
+        if self.family == 'BDM':
+            self.Edegree = self.degree + 1
+            self.Qdegree = self.degree - 1
             self.Qfamily = "DG"
+            self.Efamily = "CG"
         else:
             raise NotImplementedError('family '+self.family)
-        self.Q = FunctionSpace(mesh, self.Qfamily, self.Qdegree)
-
+        self.Q = fd.FunctionSpace(mesh, self.Qfamily, self.Qdegree)
+        self.E = fd.FunctionSpace(mesh, self.Efamily, self.Edegree) 
         # Initial condition fields and coefficients
-        self.u0 = Function(V)
-        self.D0 = Function(Q)
-        self.b = fd.Function(Q, name="Topography")
+        self.u0 = fd.Function(self.V)
+        self.D0 = fd.Function(self.Q)
+        self.b = fd.Function(self.Q, name="Topography")
 
 
 class GSWEModel(BaseSWEModel):
@@ -88,17 +92,23 @@ class GSWEModel(BaseSWEModel):
     Implicit the shallow water model using the G formulation.
     """
     def allocate(self):
-        super().allocate(self)
-        W = VectorFunctionSpace(self.mesh, self.family, self.degree)
-        self._U0 = Function(W)
+        super().allocate()
+        W = fd.VectorFunctionSpace(self.mesh, self.family, self.degree)
+        self._U0 = fd.Function(W)
         self.W = W
 
+    def U0(self):
+        return self._U0
+
+    def eqn(self):
+        return self._eqn
+        
     def build_eqn(self):
         mesh = self.mesh
         W = self.W
         dU = fd.TestFunction(W)
         du = dU[0, :]
-        dG = dG[1, :]
+        dG = dU[1, :]
         u = self._U0[0, :]
         G = self._U0[1, :]
 
@@ -106,6 +116,7 @@ class GSWEModel(BaseSWEModel):
         cx, cy, cz = x
         
         # Earth parameters
+        testcase = self.testcase
         Omega = fd.Constant(testcase.Omega)
         f = 2*Omega*cz/fd.Constant(testcase.R0)
         g = fd.Constant(testcase.g)
@@ -125,14 +136,14 @@ class GSWEModel(BaseSWEModel):
         ubar = F/D
 
         from firedrake import cross, inner, dx, dot, grad, \
-            dS, dx, div
+            dS, dx, div, sign
         
         def perp(u):
             outward_normals = fd.CellNormal(mesh)
             return cross(outward_normals, u)
 
         # u equation
-        centred = opts.hasName("model_centred")
+        centred = self.opts.hasName("model_centred")
         if centred:
             Upwind = 0.5
         else:
@@ -146,12 +157,13 @@ class GSWEModel(BaseSWEModel):
         # G equation
         # G_t + u*(div(G)-H) = 0
         eqn += fd.inner(dG, Dt(G))*fd.dx
-        eqn += fd.inner(dG, u*div(G) - H)*fd.dx
+        eqn += fd.inner(dG, u*(div(G) - H))*fd.dx
         self._eqn = eqn
 
     def set_initial_conditions(self):
         self.testcase.set_ics(self)
-        u, G = self._U0.subfunctions
+        u = self._U0.sub(0)
+        G = self._U0.sub(1)
         u.assign(self.u0)
         # Elliptic problem to get G st D = H - div(G)
         WG = self.V * self.Q
@@ -162,7 +174,7 @@ class GSWEModel(BaseSWEModel):
         uG, phi = fd.TrialFunctions(WG)
         v, q = fd.TestFunctions(WG)
         eqn = (fd.inner(uG, v) + fd.div(v)*phi
-               + q*(fd.div(uG) - H + self.D0)*fd.dx
+               + q*(fd.div(uG) - H + self.D0))*fd.dx
         shift_J = fd.lhs(eqn) + q*phi*fd.dx
         params = {
             'ksp_type': 'gmres',
@@ -172,20 +184,21 @@ class GSWEModel(BaseSWEModel):
         v_basis = fd.VectorSpaceBasis(constant=True)
         nullspace = fd.MixedVectorSpaceBasis(WG, [WG.sub(0), v_basis])
         UG = fd.Function(WG)
-        bcs = [fd.DirichletBC(WG, fd.Constant(0.), "on_boundary")]
-        fd.solve(lhs(eqn) == rhs(eqn), UG, bcs=bcs,
-                 aP = shift_J, nullspace=nullspace)
+        # Need to think about boundary conditions later
+        fd.solve(fd.lhs(eqn) == fd.rhs(eqn), UG,
+                 Jp = shift_J, nullspace=nullspace)
         G.assign(uG)
         assert fabs(fd.assemble((D + fd.div(G) - H)*fd.dx)/
                     fd.assemble(One*fd.dx)) < 1.0e-7
 
 def get_model(opts):
+    testcase = get_testcase(opts)
     model_type = opts.getString('type', 'swe')
     model_variant = opts.getString('variant', 'G')
 
     if model_type == 'swe':
         if model_variant == 'G':
-            model = GSWEModel()
+            model = GSWEModel(testcase, opts)
         else:
             raise NotImplementedError('variant ='+model_variant)
     else:

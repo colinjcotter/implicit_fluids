@@ -1,7 +1,7 @@
 import abc
 import firedrake as fd
 
-class BaseTestcase(object, metaclass=abc.ABC):
+class BaseTestcase:
     """
     Base class for testcases.
     """
@@ -33,11 +33,12 @@ class W6Testcase(BaseTestcase):
         self.Omega = 7.292e-5
         self.g = 9.8
         self.H = 5960.
+        self.opts = opts
 
     def get_mesh(self):
         nrefs = self.opts.getInt(
             'testcase_mesh_nrefs', 5)
-        starpatch = self.opts.hasname('testcase_starpatch')
+        starpatch = self.opts.hasName('testcase_starpatch')
         if starpatch:
             distribution_parameters = {
                 "partition": True,
@@ -49,10 +50,12 @@ class W6Testcase(BaseTestcase):
                                         refinement_level=nrefs,
                                         distribution_parameters=
                                         distribution_parameters)
+        x = fd.SpatialCoordinate(mesh)
+        mesh.init_cell_orientations(x)
         self.mesh = mesh
         return mesh
 
-    def set_ics(model):
+    def set_ics(self, model):
         """
         Set initial conditions for velocity v0, layer thickness D0,
         and bathymetry b
@@ -62,20 +65,25 @@ class W6Testcase(BaseTestcase):
         l = (x**2 + y**2)**0.5
         lat = fd.atan2(z, l)
 
-        # Need to get a 
-        
+        def perp(u):
+            outward_normals = fd.CellNormal(self.mesh)
+            return fd.cross(outward_normals, u)
+
         # code copied from Gusto
         R = fd.Constant(4)
         K = fd.Constant(7.847e-6) # Frequency parameter, in sec^-1
         w = K
         H0 = fd.Constant(8000.)
         psi = fd.Function(model.E)
+        R0 = self.R0
+        Omega = self.Omega
+        g = self.g
         psiexpr = -R0**2 * w * fd.sin(lat) + \
             R0**2 * K * fd.cos(lat)**R * fd.sin(lat) * fd.cos(R*lon)
         psi.interpolate(psiexpr)
         u_expr = perp(fd.grad(psi))
         model.u0.project(u_expr)
-        # Initilising the depth field
+        # Initialising the depth field
         A = (w / 2) * (2 * Omega + w) * fd.cos(lat)**2 + \
             0.25 * K**2 * fd.cos(lat)**(2 * R) * ((R + 1) * fd.cos(lat)**2 + (2 * R**2 - R - 2) - 2 * R**2 * fd.cos(lat)**(-2))
         B_frac = (2 * (Omega + w) * K) / ((R + 1) * (R + 2))
