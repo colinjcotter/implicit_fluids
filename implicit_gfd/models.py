@@ -187,6 +187,7 @@ class GSWEModel(BaseSWEModel):
         # Need to think about boundary conditions later
         fd.solve(fd.lhs(eqn) == fd.rhs(eqn), UG,
                  Jp = shift_J, nullspace=nullspace)
+        uG, _ = UG.subfunctions
         G.assign(uG)
         assert fabs(fd.assemble((D + fd.div(G) - H)*fd.dx)/
                     fd.assemble(One*fd.dx)) < 1.0e-7
