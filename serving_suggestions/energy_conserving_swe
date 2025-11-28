@@ -1,0 +1,1 @@
+python implicit_gfd/timestepper.py -model_dt 400 -model_tmax 3600 -stepper_ksp_type gmres -stepper_mat_type aij -stepper_pc_type lu -stepper_pc_factor_mat_solver_type mumps -stepper_snes_atol 0. -stepper_snes_stol 0. -stepper_snes_rtol 1.0e-8 -stepper_snes_lag_preconditioner 20 -stepper_snes_lag_preconditioner_persists -stepper_snes_monitor -stepper_ksp_monitor
