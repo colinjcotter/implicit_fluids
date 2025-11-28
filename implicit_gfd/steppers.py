@@ -33,7 +33,6 @@ def get_stepper(model, opts):
     dT = MC.Constant(dt)
     t = MC.Constant(0.)
     U0 = model.U0()
-    print(U0.ufl_shape)
     eqn = model.eqn()
     return TimeStepper(eqn, method, t, dT, U0,
                        options_prefix="stepper"), dt, t
