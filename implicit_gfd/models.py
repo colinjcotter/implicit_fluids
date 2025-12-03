@@ -162,35 +162,47 @@ class GSWEModel(BaseSWEModel):
 
     def set_initial_conditions(self):
         self.testcase.set_ics(self)
-        u = self._U0.sub(0)
-        G = self._U0.sub(1)
-        u.assign(self.u0)
         # Elliptic problem to get G st D = H - div(G)
         WG = self.V * self.Q
         One = fd.Function(self.Q).assign(1.0)
         H = fd.assemble(self.D0*fd.dx)/fd.assemble(One*fd.dx)
         self.H.assign(H)
+        assert fabs(fd.assemble((H-self.D0)*fd.dx))/fd.assemble(One*fd.dx) < 1.0e-7
         H = self.H
         uG, phi = fd.TrialFunctions(WG)
         v, q = fd.TestFunctions(WG)
-        eqn = (fd.inner(uG, v) + fd.div(v)*phi
-               + q*(fd.div(uG) - H + self.D0))*fd.dx
-        shift_J = fd.lhs(eqn) + q*phi*fd.dx
+        eqn = (fd.inner(uG, v) - fd.div(v)*phi
+               + q*(fd.div(uG) + (self.D0 - H)))*fd.dx
+        shift_J = fd.lhs(eqn + fd.Constant(1.0e-8)*q*phi*fd.dx)
         params = {
             'ksp_type': 'gmres',
             'pc_type': 'lu',
             'pc_factor_mat_solver_type': 'mumps',
         }
-        v_basis = fd.VectorSpaceBasis(constant=True)
+        v_basis = fd.VectorSpaceBasis(constant=True, comm=fd.COMM_WORLD)
         nullspace = fd.MixedVectorSpaceBasis(WG, [WG.sub(0), v_basis])
         UG = fd.Function(WG)
         # Need to think about boundary conditions later
+        hybridparams = { "mat_type": "matfree",
+                         "ksp_type": "gmres",
+                         "ksp_atol": 0,
+                         "ksp_rtol": 1.0e-15, "ksp_monitor": None,
+                         "pc_type": "python", 'pc_python_type':
+                         'firedrake.HybridizationPC', #
+                         'hybridization': {
+                             'ksp_type': 'preonly', #
+                             "ksp_error_if_not_converged": None,
+                             'pc_type': 'lu',
+                             'pc_factor_mat_solver_type':'mumps'}
+                         }
         fd.solve(fd.lhs(eqn) == fd.rhs(eqn), UG,
-                 Jp = shift_J, nullspace=nullspace)
-        uG, _ = UG.subfunctions
-        G.assign(uG)
-        assert fabs(fd.assemble((self.D0 + fd.div(G) - H)*fd.dx)/
-                    fd.assemble(One*fd.dx)) < 1.0e-7
+                 solver_parameters = hybridparams,
+                 nullspace=nullspace)
+        uG, p = UG.subfunctions
+        self._U0.interpolate(fd.as_tensor([self.u0, uG]))
+        G = self._U0[1,:]
+        res = fd.norm(fd.div(G) + (- H + self.D0))/fd.norm(One)
+        assert res < 1.0e-8, res
 
 def get_model(opts):
     testcase = get_testcase(opts)
