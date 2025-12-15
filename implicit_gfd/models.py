@@ -204,6 +204,22 @@ class GSWEModel(BaseSWEModel):
         res = fd.norm(fd.div(G) + (- H + self.D0))/fd.norm(One)
         assert res < 1.0e-8, res
 
+
+class LocalEnergySWEModel(BaseSWEModel):
+    """
+    Implicit the shallow water model using the G formulation.
+    """
+    def allocate(self):
+        super().allocate()
+        # Mixed function space for model state
+        # u, D, dH/du, G, lambda
+        u_elt = fd.BrokenElement(fd.FiniteElement(self.family, fd.triangle,
+                                                  self.degree))
+        Vu = fd.FunctionSpace(self.mesh, u_elt)
+        Vlambda = fd.FunctionSpace(self.mesh, "HDiv Trace", self.degree)
+        W = Vu * self.Q * Vu * Vu * Vlambda
+
+        
 def get_model(opts):
     testcase = get_testcase(opts)
     model_type = opts.getString('type', 'swe')
