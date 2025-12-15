@@ -212,14 +212,60 @@ class LocalEnergySWEModel(BaseSWEModel):
     def allocate(self):
         super().allocate()
         # Mixed function space for model state
-        # u, D, dH/du, G, lambda
+        # u, D, dH/du=F, G, lambda
         u_elt = fd.BrokenElement(fd.FiniteElement(self.family, fd.triangle,
                                                   self.degree))
         Vu = fd.FunctionSpace(self.mesh, u_elt)
         Vlambda = fd.FunctionSpace(self.mesh, "HDiv Trace", self.degree)
         W = Vu * self.Q * Vu * Vu * Vlambda
+        self._U0 = fd.Function(W)
+        self.W = W
 
+    def build_eqn(self):
+        mesh = self.mesh
+        W = self.W
+        du, dD, dF, dG, dll = fd.TestFunctions(W)
+        u, D, F, G, ll = fd.split(self._U0)
+
+        # Earth parameters
+        testcase = self.testcase
+        x = fd.SpatialCoordinate(mesh)
+        cx, cy, cz = x
+        Omega = fd.Constant(testcase.Omega)
+        f = 2*Omega*cz/fd.Constant(testcase.R0)
+        g = fd.Constant(testcase.g)
+        H = fd.Constant(testcase.H)
+        self.H = H
+        b = self.b
         
+        n = fd.FacetNormal(mesh)
+        from firedrake import cross, inner, dx, dot, grad, \
+            dS, dx, div, sign
+        def perp(u):
+            outward_normals = fd.CellNormal(mesh)
+            return cross(outward_normals, u)        
+        # flux equation using the "Golo trick"
+        eqn = inner(Dt(G), D*dG)*dx - jump(Dt(G), n)*ll('+')*dS
+        # dH/du equation
+        eqn += inner(Dt(F) - u*D, dF)*dx
+        ubar = Dt(F)/D
+        # velocity equation
+        centred = self.opts.hasName("model_centred")
+        if centred:
+            Upwind = 0.5
+        else:
+            Upwind = 0.5 * (sign(dot(u, n)) + 1)
+        eqn = inner(du, Dt(u))*dx
+        eqn -= inner(perp(grad(inner(du, perp(ubar)))), u)*dx
+        eqn += inner(both(perp(n)*inner(du, perp(ubar))), both(Upwind*u))*dS
+        eqn += inner(du, f*perp(ubar))*dx
+        eqn -= div(du)*(inner(u,u)/2 + g*(D+b))*dx
+        eqn += inner(du, Dt(G))*dx
+        # Depth equation
+        eqn += (Dt(D) + div(Dt(F)))*dx
+        # lambda equation
+        eqn += jump(u, n)*dll('+')*dS
+
 def get_model(opts):
     testcase = get_testcase(opts)
     model_type = opts.getString('type', 'swe')
