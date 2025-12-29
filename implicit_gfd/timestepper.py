@@ -49,7 +49,8 @@ for step in ProgressBar('Timestep').iter(range(nsteps)):
     chkpt_count += 1
 
     if vtk_count == vtkfreq:
-        vtkfile.write(model.output())
+        fields = model.output()
+        vtkfile.write(*fields)
         vtk_count == 0
 
     if chkpt_count == chkptfreq:

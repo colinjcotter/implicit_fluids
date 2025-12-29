@@ -64,7 +64,7 @@ class BaseModel:
     def output(self):
         """
         Do any necessary postprocessing and
-        return a list of fields to output.
+        return a tuple of fields to output.
         """
         pass
 
@@ -94,6 +94,8 @@ class BaseSWEModel(BaseModel):
         self.D0 = fd.Function(self.Q)
         self.b = fd.Function(self.Q, name="Topography")
 
+    def output(self):
+        return (self.u0, self.D0)
 
 class GSWEModel(BaseSWEModel):
     """
@@ -211,6 +213,13 @@ class GSWEModel(BaseSWEModel):
         G = self._U0[1,:]
         res = fd.norm(fd.div(G) + (- H + self.D0))/fd.norm(One)
         assert res < 1.0e-8, res
+
+    def output(self):
+        G = self._U0[1,:]
+        u = self._U0[0,:]
+        self.D0.interpolate(self.H - fd.div(G))
+        self.u0.interpolate(u)
+        super().output()
 
 def get_model(opts):
     testcase = get_testcase(opts)
