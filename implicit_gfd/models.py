@@ -110,9 +110,10 @@ class BaseSWEModel(BaseModel):
         u = self.u0
         D = self.D0
         b = self.b
+        g = fd.Constant(self.testcase.g)
         energy = fd.assemble((fd.inner(u, u)*D + g*D*(D/2 + b))*fd.dx)
         return {
-            "energy", energy
+            "energy": energy
             }
 
 class GSWEModel(BaseSWEModel):
@@ -160,7 +161,7 @@ class GSWEModel(BaseSWEModel):
         # D_t = -div(G_t) = div(u*(div(G)-H)) = -div(u*D)
         # ie D_t + div(u*D) = 0
         D = H - fd.div(G)
-        if self.opts.hasName("model_projection"):
+        if self.opts.hasName("projection"):
             F = Dt(G)
             ubar = F/D
         else:
@@ -174,7 +175,7 @@ class GSWEModel(BaseSWEModel):
             return cross(outward_normals, u)
 
         # u equation
-        centred = self.opts.hasName("model_centred")
+        centred = self.opts.hasName("centred")
         if centred:
             Upwind = 0.5
         else:

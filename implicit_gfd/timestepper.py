@@ -3,6 +3,7 @@ from models import get_model
 from steppers import get_stepper
 from math import fabs
 from firedrake import ProgressBar, VTKFile, CheckpointFile
+import pandas as pd
 
 opts = PETSc.Options()
 print = PETSc.Sys.Print
@@ -42,18 +43,30 @@ if filename and chkpt_count >=0:
         for field in fields:
             cfile.save_function(field, idx=0)
 
+#diagnostics setup
+diagnostics0 = model.diagnostics()
+diagnostics = {}
+for key, value in diagnostics0.items():
+    diagnostics["key"] = [value]
+
 for step in ProgressBar('Timestep').iter(range(nsteps)):
     stepper.advance()
     t.assign(float(t) + float(dt))
 
-    vtk_count += 1
-    chkpt_count += 1
+    #diagnostics
+    diagnostics0 = model.diagnostics()
+    for key, value in diagnostics0.items():
+        diagnostics["key"].append(value)
 
+    # VTK
+    vtk_count += 1
     if vtk_count == vtkfreq:
         fields = model.output()
         vtkfile.write(*fields)
         vtk_count = 0
 
+    # checkpointing
+    chkpt_count += 1
     if chkpt_count == chkptfreq:
         nchk += 1
         with CheckpointFile(filename+".h5", 'w') as cfile:
@@ -61,3 +74,8 @@ for step in ProgressBar('Timestep').iter(range(nsteps)):
             for field in fields:
                 cfile.save_function(field, idx=nchk)
         chkpt_count = 0
+
+#save diagnostics
+if filename:
+    df = pd.DataFrame(diagnostics)
+    df.to_csv(filename+'.csv')
