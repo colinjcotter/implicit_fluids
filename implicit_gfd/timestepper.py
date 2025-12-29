@@ -69,7 +69,7 @@ for step in ProgressBar('Timestep').iter(range(nsteps)):
     chkpt_count += 1
     if chkpt_count == chkptfreq:
         nchk += 1
-        with CheckpointFile(filename+".h5", 'w') as cfile:
+        with CheckpointFile(filename+".h5", 'a') as cfile:
             fields = model.output()
             for field in fields:
                 cfile.save_function(field, idx=nchk)
