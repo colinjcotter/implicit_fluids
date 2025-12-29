@@ -60,6 +60,14 @@ class BaseModel:
         """
         pass
 
+    @abc.abstractmethod
+    def output(self):
+        """
+        Do any necessary postprocessing and
+        return a list of fields to output.
+        """
+        pass
+
 class BaseSWEModel(BaseModel):
     """
     Base class for shallow water models.
