@@ -68,6 +68,13 @@ class BaseModel:
         """
         pass
 
+    @abc.abstractmethod
+    def diagnostics(self):
+        """
+        Compute diagnostics and return in a dictionary.
+        """
+        pass
+        
 class BaseSWEModel(BaseModel):
     """
     Base class for shallow water models.
@@ -97,6 +104,16 @@ class BaseSWEModel(BaseModel):
     def output(self):
         fields = (self.u0, self.D0)
         return fields
+
+    def diagnostics(self):
+        self.output()
+        u = self.u0
+        D = self.D0
+        b = self.b
+        energy = fd.assemble((fd.inner(u, u)*D + g*D*(D/2 + b))*fd.dx)
+        return {
+            "energy", energy
+            }
 
 class GSWEModel(BaseSWEModel):
     """
@@ -142,9 +159,12 @@ class GSWEModel(BaseSWEModel):
         # therefore
         # D_t = -div(G_t) = div(u*(div(G)-H)) = -div(u*D)
         # ie D_t + div(u*D) = 0
-        F = Dt(G)
         D = H - fd.div(G)
-        ubar = F/D
+        if self.opts.hasName("model_projection"):
+            F = Dt(G)
+            ubar = F/D
+        else:
+            ubar = u
 
         from firedrake import cross, inner, dx, dot, grad, \
             dS, dx, div, sign
