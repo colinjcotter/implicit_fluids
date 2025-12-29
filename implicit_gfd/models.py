@@ -95,7 +95,8 @@ class BaseSWEModel(BaseModel):
         self.b = fd.Function(self.Q, name="Topography")
 
     def output(self):
-        return (self.u0, self.D0)
+        fields = (self.u0, self.D0)
+        return fields
 
 class GSWEModel(BaseSWEModel):
     """
@@ -219,7 +220,7 @@ class GSWEModel(BaseSWEModel):
         u = self._U0[0,:]
         self.D0.interpolate(self.H - fd.div(G))
         self.u0.interpolate(u)
-        super().output()
+        return super().output()
 
 def get_model(opts):
     testcase = get_testcase(opts)

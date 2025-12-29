@@ -2,7 +2,7 @@ from firedrake.petsc import PETSc
 from models import get_model
 from steppers import get_stepper
 from math import fabs
-from firedrake import ProgressBar
+from firedrake import ProgressBar, VTKFile, CheckpointFile
 
 opts = PETSc.Options()
 print = PETSc.Sys.Print
@@ -33,7 +33,8 @@ nchk = 0
 
 if filename and vtkfreq >= 0:
     vtkfile = VTKFile(filename+".pvd")
-    vtkfile.write(model.output())
+    fields = model.output()
+    vtkfile.write(*fields)
 
 if filename and chkpt_count >=0:
     with CheckpointFile(filename+".h5", 'w') as cfile:
