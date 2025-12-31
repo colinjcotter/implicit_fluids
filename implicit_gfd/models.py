@@ -97,14 +97,35 @@ class BaseSWEModel(BaseModel):
         self.Q = fd.FunctionSpace(mesh, self.Qfamily, self.Qdegree)
         self.E = fd.FunctionSpace(mesh, self.Efamily, self.Edegree) 
         # Initial condition fields and coefficients
-        self.u0 = fd.Function(self.V)
-        self.D0 = fd.Function(self.Q)
+        self.u0 = fd.Function(self.V, name="Velocity")
+        self.D0 = fd.Function(self.Q, name="Layer Depth")
         self.b = fd.Function(self.Q, name="Topography")
 
-    def output(self):
-        fields = (self.u0, self.D0)
-        return fields
+        vorticity_diagnostic = opts.hasName("diagnostics_vorticity")
+        if vorticity_diagnostic:
+            vort = fd.TrialFunction(self.E)
+            dvort = fd.TestFunction(self.E)
+            self.vorticity = fd.Function(self.E, name="Relative Vorticity")
+            vort_lhs = vort*dvort*fd.dx
+            vort_rhs = -fd.inner(perp(fd.grad(dvort), self.u0))*fd.dx
+            vort_prob = fd.LinearVariationalProblem(vort_lhs,
+                                                    vort_rhs,
+                                                    self.vorticity)
+            vortparams = {'ksp_type':'preonly',
+                       'pc_type':'lu',
+                       "pc_factor_mat_solver_type": "mumps"}
+            self.vort_solver = fd.LinearVariationalSolver(vort_prob,
+                                                          solver_parameters=
+                                                          vortparams)
+        self.vorticity_diagnostic = vorticity_diagnostic
 
+    def output(self):
+        fields = [self.u0, self.D0]
+        if self.vorticity_diagnostic:
+            self.vort_solver.solve()
+            fields.append(self.vorticity)
+        return fields
+    
     def diagnostics(self):
         self.output()
         u = self.u0
@@ -112,9 +133,10 @@ class BaseSWEModel(BaseModel):
         b = self.b
         g = fd.Constant(self.testcase.g)
         energy = fd.assemble((fd.inner(u, u)*D + g*D*(D/2 + b))*fd.dx)
-        return {
+        diagnostics = {
             "energy": energy
-            }
+        }
+        
 
 class GSWEModel(BaseSWEModel):
     """
