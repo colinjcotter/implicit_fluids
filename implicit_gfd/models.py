@@ -101,8 +101,8 @@ class BaseSWEModel(BaseModel):
         self.D0 = fd.Function(self.Q, name="Layer Depth")
         self.b = fd.Function(self.Q, name="Topography")
 
-        vorticity_diagnostic = opts.hasName("diagnostics_vorticity")
-        if vorticity_diagnostic:
+        compute_vorticity = opts.hasName("outputs_vorticity")
+        if compute_vorticity:
             vort = fd.TrialFunction(self.E)
             dvort = fd.TestFunction(self.E)
             self.vorticity = fd.Function(self.E, name="Relative Vorticity")
@@ -117,11 +117,11 @@ class BaseSWEModel(BaseModel):
             self.vort_solver = fd.LinearVariationalSolver(vort_prob,
                                                           solver_parameters=
                                                           vortparams)
-        self.vorticity_diagnostic = vorticity_diagnostic
+        self.compute_vorticity = compute_vorticity
 
     def output(self):
         fields = [self.u0, self.D0]
-        if self.vorticity_diagnostic:
+        if self.compute_vorticity:
             self.vort_solver.solve()
             fields.append(self.vorticity)
         return fields
@@ -136,7 +136,7 @@ class BaseSWEModel(BaseModel):
         diagnostics = {
             "energy": energy
         }
-        
+        return diagnostics
 
 class GSWEModel(BaseSWEModel):
     """
