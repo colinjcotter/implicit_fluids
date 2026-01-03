@@ -3,7 +3,7 @@ from firedrake.petsc import PETSc
 import firedrake as fd
 from irksome import Dt, MeshConstant
 from math import fabs
-from testcases import get_testcase
+from implicit_gfd.testcases import get_testcase
 
 def both(u):
     return 2*fd.avg(u)

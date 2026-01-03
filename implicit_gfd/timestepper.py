@@ -1,6 +1,6 @@
 from firedrake.petsc import PETSc
-from models import get_model
-from steppers import get_stepper
+from implicit_gfd.models import get_model
+from implicit_gfd.steppers import get_stepper
 from math import fabs
 from firedrake import ProgressBar, VTKFile, CheckpointFile
 import pandas as pd
@@ -51,7 +51,7 @@ def run(options_dictionary={}):
     diagnostics0 = model.diagnostics()
     diagnostics = {}
     for key, value in diagnostics0.items():
-        diagnostics["key"] = [value]
+        diagnostics[key] = [value]
 
     for step in ProgressBar('Timestep').iter(range(nsteps)):
         stepper.advance()
@@ -60,7 +60,7 @@ def run(options_dictionary={}):
         #diagnostics
         diagnostics0 = model.diagnostics()
         for key, value in diagnostics0.items():
-            diagnostics["key"].append(value)
+            diagnostics[key].append(value)
 
         # VTK
         vtk_count += 1
@@ -83,6 +83,7 @@ def run(options_dictionary={}):
     if filename:
         df = pd.DataFrame(diagnostics)
         df.to_csv(filename+'.csv')
+    return diagnostics
 
 if __name__ == "__main__":
     run()
