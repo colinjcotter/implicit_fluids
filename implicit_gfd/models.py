@@ -8,6 +8,12 @@ from testcases import get_testcase
 def both(u):
     return 2*fd.avg(u)
 
+def get_perp(mesh):
+    def perp(u):
+        outward_normals = fd.CellNormal(mesh)
+        return fd.cross(outward_normals, u)
+    return perp
+    
 class BaseModel:
     def __init__(self, testcase, opts):
         """
@@ -82,7 +88,7 @@ class BaseSWEModel(BaseModel):
     
     def allocate(self):
         mesh = self.mesh
-        opts = PETSc.Options()
+        opts = self.opts
         self.family = opts.getString('functionspaces_family', 'BDM')
         self.degree = opts.getInt('functionspaces_degree', 2)
 
@@ -102,12 +108,14 @@ class BaseSWEModel(BaseModel):
         self.b = fd.Function(self.Q, name="Topography")
 
         compute_vorticity = opts.hasName("outputs_vorticity")
+
         if compute_vorticity:
+            perp = get_perp(mesh)
             vort = fd.TrialFunction(self.E)
             dvort = fd.TestFunction(self.E)
             self.vorticity = fd.Function(self.E, name="Relative Vorticity")
             vort_lhs = vort*dvort*fd.dx
-            vort_rhs = -fd.inner(perp(fd.grad(dvort), self.u0))*fd.dx
+            vort_rhs = -fd.inner(perp(fd.grad(dvort)), self.u0)*fd.dx
             vort_prob = fd.LinearVariationalProblem(vort_lhs,
                                                     vort_rhs,
                                                     self.vorticity)
@@ -191,10 +199,8 @@ class GSWEModel(BaseSWEModel):
 
         from firedrake import cross, inner, dx, dot, grad, \
             dS, dx, div, sign
-        
-        def perp(u):
-            outward_normals = fd.CellNormal(mesh)
-            return cross(outward_normals, u)
+
+        perp = get_perp(mesh)
 
         # u equation
         centred = self.opts.hasName("centred")
