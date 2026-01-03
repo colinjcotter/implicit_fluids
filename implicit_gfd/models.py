@@ -246,7 +246,7 @@ class GSWEModel(BaseSWEModel):
         hybridparams = { "mat_type": "matfree",
                          "ksp_type": "gmres",
                          "ksp_atol": 0,
-                         "ksp_rtol": 1.0e-15, "ksp_monitor": None,
+                         "ksp_rtol": 1.0e-10, "ksp_monitor": None,
                          "pc_type": "python", 'pc_python_type':
                          'firedrake.HybridizationPC', #
                          'hybridization': {
