@@ -1,6 +1,6 @@
-from firedrake.petsc import PETSc
 from irksome import ContinuousPetrovGalerkinScheme
 from irksome import MeshConstant, TimeStepper
+
 
 def get_stepper(model, opts):
     timestepper = opts.getString('time_method', 'galerkin')

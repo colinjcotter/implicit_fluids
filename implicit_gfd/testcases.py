@@ -2,13 +2,14 @@ import abc
 import firedrake as fd
 from firedrake.petsc import PETSc
 
+
 class BaseTestcase:
     """
     Base class for testcases.
     """
     def __init__(self, opts):
         self.opts = opts
-    
+
     @abc.abstractmethod
     def get_mesh(self):
         """
@@ -27,6 +28,7 @@ class BaseTestcase:
         starpatch - if present, extends the halos to accommodate star patches.
         """
 
+
 class W6Testcase(BaseTestcase):
     def __init__(self, opts):
         super().__init__(self)
@@ -41,16 +43,15 @@ class W6Testcase(BaseTestcase):
             'mesh_nrefs', 5)
         starpatch = self.opts.hasName('starpatch')
         if starpatch:
-            distribution_parameters = {
+            dps = {
                 "partition": True,
                 "overlap_type":
                 (fd.DistributedMeshOverlapType.VERTEX, 2)}
         else:
-            distribution_parameters = None
+            dps = None
         mesh = fd.IcosahedralSphereMesh(radius=self.R0,
                                         refinement_level=nrefs,
-                                        distribution_parameters=
-                                        distribution_parameters)
+                                        distribution_parameters=dps)
         x = fd.SpatialCoordinate(mesh)
         mesh.init_cell_orientations(x)
         self.mesh = mesh
@@ -63,8 +64,8 @@ class W6Testcase(BaseTestcase):
         """
         x, y, z = fd.SpatialCoordinate(self.mesh)
         lon = fd.atan2(y, x)
-        l = (x**2 + y**2)**0.5
-        lat = fd.atan2(z, l)
+        ll = (x**2 + y**2)**0.5
+        lat = fd.atan2(z, ll)
 
         def perp(u):
             outward_normals = fd.CellNormal(self.mesh)
@@ -72,7 +73,7 @@ class W6Testcase(BaseTestcase):
 
         # code copied from Gusto
         R = fd.Constant(4)
-        K = fd.Constant(7.847e-6) # Frequency parameter, in sec^-1
+        K = fd.Constant(7.847e-6)  # Frequency parameter, in sec^-1
         w = K
         H0 = fd.Constant(8000.)
         psi = fd.Function(model.E)
@@ -86,12 +87,17 @@ class W6Testcase(BaseTestcase):
         model.u0.project(u_expr)
         # Initialising the depth field
         A = (w / 2) * (2 * Omega + w) * fd.cos(lat)**2 + \
-            0.25 * K**2 * fd.cos(lat)**(2 * R) * ((R + 1) * fd.cos(lat)**2 + (2 * R**2 - R - 2) - 2 * R**2 * fd.cos(lat)**(-2))
+            0.25 * K**2 * fd.cos(lat)**(2 * R) * \
+            ((R + 1) * fd.cos(lat)**2 + (2 * R**2 - R - 2) -
+             2 * R**2 * fd.cos(lat)**(-2))
         B_frac = (2 * (Omega + w) * K) / ((R + 1) * (R + 2))
-        B = B_frac * fd.cos(lat)**R * ((R**2 + 2 * R + 2) - (R + 1)**2 * fd.cos(lat)**2)
-        C = (1 / 4) * K**2 * fd.cos(lat)**(2 * R) * ((R + 1)*fd.cos(lat)**2 - (R + 2))
+        B = B_frac * fd.cos(lat)**R * ((R**2 + 2 * R + 2) -
+                                       (R + 1)**2 * fd.cos(lat)**2)
+        C = (1 / 4) * K**2 * fd.cos(lat)**(2 * R) * \
+            ((R + 1)*fd.cos(lat)**2 - (R + 2))
         Dexpr = H0 + R0**2 * (A + B*fd.cos(lon*R) + C * fd.cos(2 * R * lon))/g
         model.D0.interpolate(Dexpr)
+
 
 def get_testcase(opts):
     testcase = opts.getString('testcase', 'w6')

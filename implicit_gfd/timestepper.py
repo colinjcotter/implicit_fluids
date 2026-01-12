@@ -8,6 +8,7 @@ import pandas as pd
 opts = PETSc.Options()
 print = PETSc.Sys.Print
 
+
 def run(options_dictionary={}):
     opts = PETSc.Options()
     for k, v in options_dictionary.items():
@@ -19,7 +20,7 @@ def run(options_dictionary={}):
     tmax = opts.getScalar('model_tmax', 1.0)
     nsteps = int(tmax/dt)
     assert fabs(nsteps*dt - tmax) < 1.0e-6*dt, 'tmax is not a multiple of dt'
-    
+
     stepper_opts = PETSc.Options('stepper_')
     stepper, dt, t = get_stepper(model, stepper_opts)
 
@@ -30,7 +31,7 @@ def run(options_dictionary={}):
         chkptfreq = opts.getInt("chkptfreq", -999)
     else:
         vtkfreq = -999
-        chkptfreq= -999
+        chkptfreq = -999
 
     vtk_count = 0
     chkpt_count = 0
@@ -41,13 +42,13 @@ def run(options_dictionary={}):
         fields = model.output()
         vtkfile.write(*fields)
 
-    if filename and chkpt_count >=0:
+    if filename and chkpt_count >= 0:
         with CheckpointFile(filename+".h5", 'w') as cfile:
             fields = model.output()
             for field in fields:
                 cfile.save_function(field, idx=0)
 
-    #diagnostics setup
+    # diagnostics setup
     diagnostics0 = model.diagnostics()
     diagnostics = {}
     for key, value in diagnostics0.items():
@@ -57,7 +58,7 @@ def run(options_dictionary={}):
         stepper.advance()
         t.assign(float(t) + float(dt))
 
-        #diagnostics
+        # diagnostics
         diagnostics0 = model.diagnostics()
         for key, value in diagnostics0.items():
             diagnostics[key].append(value)
@@ -79,11 +80,12 @@ def run(options_dictionary={}):
                     cfile.save_function(field, idx=nchk)
             chkpt_count = 0
 
-    #save diagnostics
+    # save diagnostics
     if filename:
         df = pd.DataFrame(diagnostics)
         df.to_csv(filename+'.csv')
     return diagnostics
+
 
 if __name__ == "__main__":
     run()
