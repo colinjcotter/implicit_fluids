@@ -24,4 +24,4 @@ test = [
 ]
 
 [tool.setuptools.packages.find]
-include = ["implicit_gfd*"]
+include = ["implicit_fluids*"]

@@ -1,6 +1,6 @@
 from firedrake.petsc import PETSc
-from implicit_gfd.models import get_model
-from implicit_gfd.steppers import get_stepper
+from implicit_fluids.models import get_model
+from implicit_fluids.steppers import get_stepper
 from math import fabs
 from firedrake import ProgressBar, VTKFile, CheckpointFile
 import pandas as pd
