@@ -23,7 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     # The docker container to use.
     container:
-      image: firedrakeproject/firedrake-vanilla:latest
+      image: firedrakeproject/firedrake-vanilla-default:latest
       options: --user root
     env:
       OMP_NUM_THREADS: 1
