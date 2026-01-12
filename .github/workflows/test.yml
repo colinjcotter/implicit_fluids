@@ -24,40 +24,29 @@ jobs:
     # The docker container to use.
     container:
       image: firedrakeproject/firedrake-vanilla-default:latest
-      options: --user root
-    env:
-      OMP_NUM_THREADS: 1
-      OPENBLAS_NUM_THREADS: 1
     # Steps represent a sequence of tasks that will be executed as
     # part of the jobs
     steps:
-      - name: Fix permissions
-        # Firedrake's Dockerfile sets USER to firedrake instead of
-        # using the default user, so we need to update file
-        # permissions for this image to work on GH Actions.
-        # See https://help.github.com/en/actions/reference/virtual-environments-for-github-hosted-runners#docker-container-filesystem
-        # (copied from https://help.github.com/en/actions/migrating-to-github-actions/migrating-from-circleci-to-github-actions)
+      - uses: actions/checkout@v6
+        with:
+          path: repo
+
+      - name: Create virtual environment
+        # pass '--system-site-packages' so Firedrake can be found
+        run: python3 -m venv --system-site-packages venv
+
+      - name: Install package
         run: |
-          sudo chmod -R 777 $GITHUB_WORKSPACE /github /__w/_temp
-      - uses: actions/checkout@v2
-      - name: Install test dependencies
+          . venv/bin/activate
+          pip install './repo[lint,test]'
+          pip list
+
+      - name: Run lint
         run: |
-          . /home/firedrake/firedrake/bin/activate
-          python -m pip install pytest-timeout
-          python -m pip install pytest-cov
-      - name: Install
+          . venv/bin/activate
+          flake8 ./repo
+
+      - name: Run tests
         run: |
-          . /home/firedrake/firedrake/bin/activate
-          firedrake-status
-          python -m pip install -e .
-      - name: Lint
-        run: |
-          . /home/firedrake/firedrake/bin/activate
-          flake8 --version
-          flake8 .
-      - name: Test
-        run: |
-          . /home/firedrake/firedrake/bin/activate
-          python --version
-          python -m pytest --version
-          python -m pytest -v -n 6 --durations=40 --timeout=600 --cov=implicit_fluids --cov-report=term tests/
+          . venv/bin/activate
+          pytest -v -n 6 --durations=40 --timeout=600 --cov=implicit_fluids --cov-report=term tests/
