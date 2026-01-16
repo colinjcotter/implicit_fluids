@@ -1,5 +1,6 @@
 import abc
 import firedrake as fd
+from firedrake.petsc import PETSc
 
 class BaseTestcase:
     """
@@ -22,7 +23,7 @@ class BaseTestcase:
         as required for the specific model.
 
         Options:
-        testcase_nrefs - int, set the number of mesh refinement levels
+        nrefs - int, set the number of mesh refinement levels
         starpatch - if present, extends the halos to accommodate star patches.
         """
 
@@ -37,8 +38,8 @@ class W6Testcase(BaseTestcase):
 
     def get_mesh(self):
         nrefs = self.opts.getInt(
-            'testcase_mesh_nrefs', 5)
-        starpatch = self.opts.hasName('testcase_starpatch')
+            'mesh_nrefs', 5)
+        starpatch = self.opts.hasName('starpatch')
         if starpatch:
             distribution_parameters = {
                 "partition": True,
@@ -94,7 +95,8 @@ class W6Testcase(BaseTestcase):
 
 def get_testcase(opts):
     testcase = opts.getString('testcase', 'w6')
+    testcase_opts = PETSc.Options('testcase_')
     if testcase == 'w6':
-        return W6Testcase(opts)
+        return W6Testcase(testcase_opts)
     else:
         raise NotImplementedError('testcase '+testcase)

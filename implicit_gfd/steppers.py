@@ -10,7 +10,7 @@ def get_stepper(model, opts):
         else:
             basis_type = None
         if opts.hasName('quadrature_degree'):
-            quadrature_degree = opts.getString('quadrature_degree')
+            quadrature_degree = opts.getInt('quadrature_degree')
         else:
             quadrature_degree = None
         quadrature_scheme = opts.getString('quadrature_scheme',
