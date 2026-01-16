@@ -9,10 +9,12 @@ See serving_suggestions for some possible command line options to get started.
 ## Guide to options
 
 `filename`: Filename prefix to use (suffixes such as .h5 and .pvd will be added)
+
 'vtkfreq': Frequency to output vtk files at
+
 `chkptfreq`: Frequency to output checkpoint files at
 
-### specifying the model
+### Specifying the model
 
 These options all have the prefix `model_`
 
