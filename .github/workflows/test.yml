@@ -49,4 +49,4 @@ jobs:
       - name: Run tests
         run: |
           . venv/bin/activate
-          pytest -v -n 6 --durations=40 --timeout=600 --cov=implicit_fluids --cov-report=term tests/
+          pytest -v -n 6 --durations=40 --timeout=600 --cov=./repo/implicit_fluids --cov-report=term ./repo/tests/
