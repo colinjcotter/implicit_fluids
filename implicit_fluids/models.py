@@ -1,19 +1,21 @@
 import abc
-from firedrake.petsc import PETSc
 import firedrake as fd
-from irksome import Dt, MeshConstant
+from irksome import Dt
 from math import fabs
-from implicit_gfd.testcases import get_testcase
+from implicit_fluids.testcases import get_testcase
+
 
 def both(u):
     return 2*fd.avg(u)
+
 
 def get_perp(mesh):
     def perp(u):
         outward_normals = fd.CellNormal(mesh)
         return fd.cross(outward_normals, u)
     return perp
-    
+
+
 class BaseModel:
     def __init__(self, testcase, opts):
         """
@@ -80,12 +82,13 @@ class BaseModel:
         Compute diagnostics and return in a dictionary.
         """
         pass
-        
+
+
 class BaseSWEModel(BaseModel):
     """
     Base class for shallow water models.
     """
-    
+
     def allocate(self):
         mesh = self.mesh
         opts = self.opts
@@ -101,7 +104,7 @@ class BaseSWEModel(BaseModel):
         else:
             raise NotImplementedError('family '+self.family)
         self.Q = fd.FunctionSpace(mesh, self.Qfamily, self.Qdegree)
-        self.E = fd.FunctionSpace(mesh, self.Efamily, self.Edegree) 
+        self.E = fd.FunctionSpace(mesh, self.Efamily, self.Edegree)
         # Initial condition fields and coefficients
         self.u0 = fd.Function(self.V, name="Velocity")
         self.D0 = fd.Function(self.Q, name="Layer Depth")
@@ -119,12 +122,12 @@ class BaseSWEModel(BaseModel):
             vort_prob = fd.LinearVariationalProblem(vort_lhs,
                                                     vort_rhs,
                                                     self.vorticity)
-            vortparams = {'ksp_type':'preonly',
-                       'pc_type':'lu',
-                       "pc_factor_mat_solver_type": "mumps"}
-            self.vort_solver = fd.LinearVariationalSolver(vort_prob,
-                                                          solver_parameters=
-                                                          vortparams)
+            vortparams = {'ksp_type': 'preonly',
+                          'pc_type': 'lu',
+                          "pc_factor_mat_solver_type": "mumps"}
+            LVS = fd.LinearVariationalSolver
+            self.vort_solver = LVS(vort_prob,
+                                   solver_parameters=vortparams)
         self.compute_vorticity = compute_vorticity
 
     def output(self):
@@ -133,7 +136,7 @@ class BaseSWEModel(BaseModel):
             self.vort_solver.solve()
             fields.append(self.vorticity)
         return fields
-    
+
     def diagnostics(self):
         self.output()
         u = self.u0
@@ -145,6 +148,7 @@ class BaseSWEModel(BaseModel):
             "energy": energy
         }
         return diagnostics
+
 
 class GSWEModel(BaseSWEModel):
     """
@@ -161,7 +165,7 @@ class GSWEModel(BaseSWEModel):
 
     def eqn(self):
         return self._eqn
-        
+
     def build_eqn(self):
         mesh = self.mesh
         W = self.W
@@ -173,7 +177,7 @@ class GSWEModel(BaseSWEModel):
 
         x = fd.SpatialCoordinate(mesh)
         cx, cy, cz = x
-        
+
         # Earth parameters
         testcase = self.testcase
         Omega = fd.Constant(testcase.Omega)
@@ -182,7 +186,6 @@ class GSWEModel(BaseSWEModel):
         H = fd.Constant(testcase.H)
         self.H = H
         b = self.b
-        U0 = self._U0
         n = fd.FacetNormal(mesh)
 
         # D = H - div(G)
@@ -197,7 +200,7 @@ class GSWEModel(BaseSWEModel):
         else:
             ubar = u
 
-        from firedrake import cross, inner, dx, dot, grad, \
+        from firedrake import inner, dot, grad, \
             dS, dx, div, sign
 
         perp = get_perp(mesh)
@@ -212,7 +215,7 @@ class GSWEModel(BaseSWEModel):
         eqn -= inner(perp(grad(inner(du, perp(ubar)))), u)*dx
         eqn += inner(both(perp(n)*inner(du, perp(ubar))), both(Upwind*u))*dS
         eqn += inner(du, f*perp(ubar))*dx
-        eqn -= div(du)*(inner(u,u)/2 + g*(D+b))*dx
+        eqn -= div(du)*(inner(u, u)/2 + g*(D+b))*dx
 
         # G equation
         # G_t + u*(div(G)-H) = 0
@@ -227,51 +230,46 @@ class GSWEModel(BaseSWEModel):
         One = fd.Function(self.Q).assign(1.0)
         H = fd.assemble(self.D0*fd.dx)/fd.assemble(One*fd.dx)
         self.H.assign(H)
-        assert fabs(fd.assemble((H-self.D0)*fd.dx))/fd.assemble(One*fd.dx) < 1.0e-7
+        assert fabs(fd.assemble((H-self.D0)*fd.dx)
+                    )/fd.assemble(One*fd.dx) < 1.0e-7
         H = self.H
         uG, phi = fd.TrialFunctions(WG)
         v, q = fd.TestFunctions(WG)
         eqn = (fd.inner(uG, v) - fd.div(v)*phi
                + q*(fd.div(uG) + (self.D0 - H)))*fd.dx
-        shift_J = fd.lhs(eqn + fd.Constant(1.0e-8)*q*phi*fd.dx)
-        params = {
-            'ksp_type': 'gmres',
-            'pc_type': 'lu',
-            'pc_factor_mat_solver_type': 'mumps',
-        }
         v_basis = fd.VectorSpaceBasis(constant=True, comm=fd.COMM_WORLD)
         nullspace = fd.MixedVectorSpaceBasis(WG, [WG.sub(0), v_basis])
         UG = fd.Function(WG)
         # Need to think about boundary conditions later
-        hybridparams = { "mat_type": "matfree",
-                         "ksp_type": "gmres",
-                         "ksp_atol": 0,
-                         "ksp_rtol": 1.0e-10, "ksp_monitor": None,
-                         "pc_type": "python", 'pc_python_type':
-                         'firedrake.HybridizationPC', #
-                         'hybridization': {
-                             'ksp_type': 'preonly', #
-                             "ksp_error_if_not_converged": None,
-                             'pc_type': 'lu',
-                             'pc_factor_mat_solver_type':'mumps'}
-                         }
+        hybridparams = {"mat_type": "matfree",
+                        "ksp_type": "gmres",
+                        "ksp_atol": 0,
+                        "ksp_rtol": 1.0e-10, "ksp_monitor": None,
+                        "pc_type": "python", 'pc_python_type':
+                        'firedrake.HybridizationPC',
+                        'hybridization': {
+                            'ksp_type': 'preonly',
+                            "ksp_error_if_not_converged": None,
+                            'pc_type': 'lu',
+                            'pc_factor_mat_solver_type': 'mumps'}
+                        }
         fd.solve(fd.lhs(eqn) == fd.rhs(eqn), UG,
-                 solver_parameters = hybridparams,
+                 solver_parameters=hybridparams,
                  nullspace=nullspace)
         uG, p = UG.subfunctions
         self._U0.interpolate(fd.as_tensor([self.u0, uG]))
-        G = self._U0[1,:]
+        G = self._U0[1, :]
         res = fd.norm(fd.div(G) + (- H + self.D0))/fd.norm(One)
         assert res < 1.0e-8, res
 
     def output(self):
-        G = self._U0[1,:]
-        u = self._U0[0,:]
+        G = self._U0[1, :]
+        u = self._U0[0, :]
         self.D0.interpolate(self.H - fd.div(G))
         self.u0.interpolate(u)
         return super().output()
 
-        
+
 class LocalEnergySWEModel(BaseSWEModel):
     """
     Implicit the shallow water model using the local energy
@@ -305,13 +303,13 @@ class LocalEnergySWEModel(BaseSWEModel):
         H = fd.Constant(testcase.H)
         self.H = H
         b = self.b
-        
+
         n = fd.FacetNormal(mesh)
-        from firedrake import cross, inner, dx, dot, grad, \
-            dS, dx, div, sign
-        def perp(u):
-            outward_normals = fd.CellNormal(mesh)
-            return cross(outward_normals, u)        
+        from firedrake import inner, dot, grad, \
+            dS, dx, div, sign, jump
+
+        perp = get_perp(mesh)
+
         # flux equation using the "Golo trick"
         # <du, Dt(G) > = << [[ U(du, D).n ]], lambda >>
         # achieved by doing
@@ -331,14 +329,14 @@ class LocalEnergySWEModel(BaseSWEModel):
         eqn -= inner(perp(grad(inner(du, perp(ubar)))), u)*dx
         eqn += inner(both(perp(n)*inner(du, perp(ubar))), both(Upwind*u))*dS
         eqn += inner(du, f*perp(ubar))*dx
-        eqn -= div(du)*(inner(u,u)/2 + g*(D+b))*dx
+        eqn -= div(du)*(inner(u, u)/2 + g*(D+b))*dx
         # gives << [[ U(du, D).n ]], lambda >>
         eqn += inner(du, Dt(G))*dx
         # Depth equation
         eqn += (Dt(D) + div(Dt(F)))*dx
         # lambda equation
         eqn += jump(u, n)*dll('+')*dS
-        
+
 
 def get_model(opts):
     testcase = get_testcase(opts)
