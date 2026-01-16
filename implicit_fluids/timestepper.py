@@ -24,7 +24,7 @@ def run(options_dictionary={}):
     stepper_opts = PETSc.Options('stepper_')
     stepper, dT, t = get_stepper(model, stepper_opts)
     dT.assign(dt)
-    
+
     filename = opts.hasName("filename")
     if filename:
         filename = opts.getString("filename")

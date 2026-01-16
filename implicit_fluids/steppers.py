@@ -34,4 +34,4 @@ def get_stepper(model, opts):
     U0 = model.U0()
     eqn = model.eqn()
     return TimeStepper(eqn, method, t, dT, U0,
-                       options_prefix="stepper"), dt, t
+                       options_prefix="stepper"), dT, t
