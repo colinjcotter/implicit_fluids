@@ -42,9 +42,9 @@ jobs:
           python -m pip list
 
       - name: Install irksome
-      	run: |
-	  . venv/bin/activate
-	  python -m pip install --src . --editable git+https://github.com/firedrakeproject/Irksome.git#egg=Irksome
+        run: |
+          . venv/bin/activate
+          python -m pip install --src . --editable git+https://github.com/firedrakeproject/Irksome.git#egg=Irksome
 
       - name: Run lint
         run: |
