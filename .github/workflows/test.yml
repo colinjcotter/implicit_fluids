@@ -39,12 +39,13 @@ jobs:
         run: |
           . venv/bin/activate
           python -m pip install './repo[lint,test]'
-          python -m pip list
 
-      - name: Install irksome
+      - name: Install irksome and pandas
         run: |
           . venv/bin/activate
           python -m pip install git+https://github.com/firedrakeproject/irksome.git
+	  python -m pip install pandas
+          python -m pip list
 
       - name: Run lint
         run: |
