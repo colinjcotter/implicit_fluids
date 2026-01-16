@@ -4,13 +4,11 @@ A collection of models for fluid dynamics (mostly geophysical fluid
 dynamics) using Firedrake and Irksome. The system is entirely driven by
 PETSc command line options.
 
-See serving_suggestions for some possible command line options to get started.
-
 ## Guide to options
 
 `filename`: Filename prefix to use (suffixes such as .h5 and .pvd will be added)
 
-'vtkfreq': Frequency to output vtk files at
+`vtkfreq`: Frequency to output vtk files at
 
 `chkptfreq`: Frequency to output checkpoint files at
 
@@ -18,17 +16,18 @@ See serving_suggestions for some possible command line options to get started.
 
 These options all have the prefix `model_`
 
-`model_type`: Select the model. `swe` - Shallow water equations.
+`model_type`: Select the model. `swe` - Shallow water equations (default).
 
 `model_variant`: Select the model variant. `G` - The G formulation of the shallow water equations, where
-D = H - div(G).
+D = H - div(G) (default).
 
 `model_functionspaces_family`: Select the family for the Hdiv velocity
-space, e.g. `BDM`, `RT`, etc.
+space, e.g. `BDM` (default), `RT`, etc.
 
-`model_functionspaces_degree`: Select the degree for the family (integer).
+`model_functionspaces_degree`: Select the degree for the family
+(integer). 1 is the default.
 
-`model_outputs_vorticity`: Compute the relative vorticity for the output.
+`model_outputs_vorticity`: Compute the relative vorticity for the output if present.
 
 `model_projection`: For the G variant, use G_t for u*D in the tendency. In a cPG
 time-Galerkin formulation, this implements the projection of dH/du into the test
@@ -68,3 +67,9 @@ Options to be passed to `irksome.scheme`:
 `stepper_quadrature_scheme`: string
 
 The PETSc solver for the implicit timestepper also has the prefix `stepper_`
+
+## Serving suggestions
+
+Sample options for rotating shallow water equations using G formulation.
+
+python implicit_fluids/timestepper.py -model_dt 400 -model_tmax 3600 -stepper_ksp_type fgmres -stepper_pc_type lu -stepper_pc_factor_mat_solver_type mumps -stepper_snes_ksp_ew -stepper_snes_atol 0. -stepper_snes_stol 0. -stepper_snes_rtol 1.0e-8 -stepper_snes_lag_preconditioner 200 -stepper_snes_lag_preconditioner_persists -stepper_snes_monitor ascii:monitor.dat -stepper_ksp_monitor ascii:monitor.dat -filename w6 -vtkfreq 1 -chkptfreq 0
