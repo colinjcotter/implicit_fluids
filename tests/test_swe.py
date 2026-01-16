@@ -1,4 +1,4 @@
-from implicit_gfd import timestepper as ts
+from implicit_fluids import timestepper as ts
 from math import fabs
 
 
