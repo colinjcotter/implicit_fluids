@@ -38,15 +38,15 @@ jobs:
       - name: Install package
         run: |
           . venv/bin/activate
-          pip install './repo[lint,test]'
-          pip list
+          python -m pip install './repo[lint,test]'
+          python -m pip list
 
       - name: Run lint
         run: |
           . venv/bin/activate
-          flake8 ./repo
+          python -m flake8 ./repo
 
       - name: Run tests
         run: |
           . venv/bin/activate
-          pytest -v -n 6 --durations=40 --timeout=600 --cov=./repo/implicit_fluids --cov-report=term ./repo/tests/
+          python -m pytest -v -n 6 --durations=40 --timeout=600 --cov=./repo/implicit_fluids --cov-report=term ./repo/tests/
