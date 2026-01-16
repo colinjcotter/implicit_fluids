@@ -41,7 +41,7 @@ class W6Testcase(BaseTestcase):
     def get_mesh(self):
         nrefs = self.opts.getInt(
             'mesh_nrefs', 5)
-        starpatch = self.opts.hasName('starpatch')
+        starpatch = self.opts.hasName('mesh_starpatch')
         if starpatch:
             dps = {
                 "partition": True,

@@ -22,8 +22,9 @@ def run(options_dictionary={}):
     assert fabs(nsteps*dt - tmax) < 1.0e-6*dt, 'tmax is not a multiple of dt'
 
     stepper_opts = PETSc.Options('stepper_')
-    stepper, dt, t = get_stepper(model, stepper_opts)
-
+    stepper, dT, t = get_stepper(model, stepper_opts)
+    dT.assign(dt)
+    
     filename = opts.hasName("filename")
     if filename:
         filename = opts.getString("filename")

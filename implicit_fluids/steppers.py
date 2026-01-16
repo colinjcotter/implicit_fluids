@@ -28,7 +28,6 @@ def get_stepper(model, opts):
     else:
         raise NotImplementedError('timestepper '+timestepper)
 
-    dt = opts.getScalar('dt', 100.0)
     MC = MeshConstant(model.mesh)
     dT = MC.Constant(dt)
     t = MC.Constant(0.)
