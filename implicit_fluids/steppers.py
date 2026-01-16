@@ -29,7 +29,7 @@ def get_stepper(model, opts):
         raise NotImplementedError('timestepper '+timestepper)
 
     MC = MeshConstant(model.mesh)
-    dT = MC.Constant(dt)
+    dT = MC.Constant(1.)
     t = MC.Constant(0.)
     U0 = model.U0()
     eqn = model.eqn()
