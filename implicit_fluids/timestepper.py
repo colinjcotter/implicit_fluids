@@ -29,7 +29,7 @@ def run(options_dictionary={}):
     if filename:
         filename = opts.getString("filename")
         vtkfreq = opts.getInt("vtkfreq", -999)
-        chkptfreq = opts.getInt("chkptfreq", -999)
+        chkptfreq = opts.getInt("chkptfreq", nsteps)
     else:
         vtkfreq = -999
         chkptfreq = -999
