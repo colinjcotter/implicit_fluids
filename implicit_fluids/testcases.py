@@ -28,10 +28,17 @@ class BaseTestcase:
         starpatch - if present, extends the halos to accommodate star patches.
         """
 
+class W5Testcase(BaseTestcase):
+    def __init__(self, opts):
+        super().__init__(opts)
+        self.R0 = 6371220.
+        self.Omega = 7.292e-5
+        self.g = 9.8
+        self.H = 5960.
 
 class W6Testcase(BaseTestcase):
     def __init__(self, opts):
-        super().__init__(self)
+        super().__init__(opts)
         self.R0 = 6371220.
         self.Omega = 7.292e-5
         self.g = 9.8
@@ -51,6 +58,7 @@ class W6Testcase(BaseTestcase):
             dps = None
         mesh = fd.IcosahedralSphereMesh(radius=self.R0,
                                         refinement_level=nrefs,
+                                        degree=1,
                                         distribution_parameters=dps)
         x = fd.SpatialCoordinate(mesh)
         mesh.init_cell_orientations(x)

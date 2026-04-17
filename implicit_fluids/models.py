@@ -143,7 +143,10 @@ class BaseSWEModel(BaseModel):
         D = self.D0
         b = self.b
         g = fd.Constant(self.testcase.g)
-        energy = fd.assemble((fd.inner(u, u)*D + g*D*(D/2 + b))*fd.dx)
+        energy = fd.assemble(
+            fd.inner(u, u)*D*fd.dx
+            + g*D*(D/2 + b)*fd.dx
+        )
         diagnostics = {
             "energy": energy
         }
@@ -215,12 +218,15 @@ class GSWEModel(BaseSWEModel):
         eqn -= inner(perp(grad(inner(du, perp(ubar)))), u)*dx
         eqn += inner(both(perp(n)*inner(du, perp(ubar))), both(Upwind*u))*dS
         eqn += inner(du, f*perp(ubar))*dx
-        eqn -= div(du)*(inner(u, u)/2 + g*(D+b))*dx
+        eqn -= div(du)*(
+            inner(u, u)/2
+            + g*(D+b)
+        )*dx
 
         # G equation
         # G_t + u*(div(G)-H) = 0
         eqn += fd.inner(dG, Dt(G))*fd.dx
-        eqn += fd.inner(dG, u*(div(G) - H))*fd.dx
+        eqn += fd.inner(dG, -u*D)*fd.dx
         self._eqn = eqn
 
     def set_initial_conditions(self):
