@@ -144,7 +144,7 @@ class BaseSWEModel(BaseModel):
         b = self.b
         g = fd.Constant(self.testcase.g)
         energy = fd.assemble(
-            fd.inner(u, u)*D*fd.dx
+            fd.inner(u, u)*D/2*fd.dx
             + g*D*(D/2 + b)*fd.dx
         )
         diagnostics = {
@@ -271,7 +271,8 @@ class GSWEModel(BaseSWEModel):
     def output(self):
         G = self._U0[1, :]
         u = self._U0[0, :]
-        self.D0.interpolate(self.H - fd.div(G))
+        D = self.H - fd.div(G)
+        self.D0.interpolate(D)
         self.u0.interpolate(u)
         return super().output()
 
