@@ -108,6 +108,7 @@ class BaseSWEModel(BaseModel):
         # Initial condition fields and coefficients
         self.u0 = fd.Function(self.V, name="Velocity")
         self.D0 = fd.Function(self.Q, name="Layer Depth")
+        self.eta0 = fd.Function(self.Q, name="Elevation")
         self.b = fd.Function(self.Q, name="Topography")
 
         compute_vorticity = opts.hasName("outputs_vorticity")
@@ -131,7 +132,8 @@ class BaseSWEModel(BaseModel):
         self.compute_vorticity = compute_vorticity
 
     def output(self):
-        fields = [self.u0, self.D0]
+        self.eta0.interpolate(self.D0 + self.b)
+        fields = [self.u0, self.D0, self.eta0]
         if self.compute_vorticity:
             self.vort_solver.solve()
             fields.append(self.vorticity)

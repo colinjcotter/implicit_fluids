@@ -27,7 +27,7 @@ class BaseTestcase:
         nrefs - int, set the number of mesh refinement levels
         starpatch - if present, extends the halos to accommodate star patches.
         """
-
+        
 class W5Testcase(BaseTestcase):
     def __init__(self, opts):
         super().__init__(opts)
@@ -36,6 +36,55 @@ class W5Testcase(BaseTestcase):
         self.g = 9.8
         self.H = 5960.
 
+    def get_mesh(self):
+        nrefs = self.opts.getInt(
+            'mesh_nrefs', 5)
+        starpatch = self.opts.hasName('mesh_starpatch')
+        if starpatch:
+            dps = {
+                "partition": True,
+                "overlap_type":
+                (fd.DistributedMeshOverlapType.VERTEX, 2)}
+        else:
+            dps = None
+        mesh = fd.IcosahedralSphereMesh(radius=self.R0,
+                                        refinement_level=nrefs,
+                                        degree=1,
+                                        distribution_parameters=dps)
+        x = fd.SpatialCoordinate(mesh)
+        mesh.init_cell_orientations(x)
+        self.mesh = mesh
+        return mesh
+
+    def set_ics(self, model):
+        """
+        Set initial conditions for velocity v0, layer thickness D0,
+        and bathymetry b
+        """
+
+        x = fd.SpatialCoordinate(self.mesh)
+        u_0 = 20.0  # maximum amplitude of the zonal wind [m/s]
+        u_max = fd.Constant(u_0)
+        R0 = self.R0
+        Omega = self.Omega
+        g = self.g
+        H = self.H
+        u_expr = fd.as_vector([-u_max*x[1]/R0, u_max*x[0]/R0, 0.0])
+        eta_expr = - ((R0 * Omega * u_max + u_max*u_max/2.0)*(x[2]*x[2]/(R0*R0)))/g
+        # Topography.
+        rl = fd.pi/9.0
+        lambda_x = fd.atan2(x[1]/R0, x[0]/R0)
+        lambda_c = -fd.pi/2.0
+        phi_x = fd.asin(x[2]/R0)
+        phi_c = fd.pi/6.0
+        minarg = fd.min_value(pow(rl, 2),
+                              pow(phi_x - phi_c, 2) + pow(lambda_x - lambda_c, 2))
+        bexpr = 2000.0*(1 - fd.sqrt(minarg)/rl)
+        model.b.interpolate(bexpr)
+        model.u0.interpolate(u_expr)
+        model.D0.interpolate(eta_expr + H - bexpr)
+
+    
 class W6Testcase(BaseTestcase):
     def __init__(self, opts):
         super().__init__(opts)
@@ -110,7 +159,9 @@ class W6Testcase(BaseTestcase):
 def get_testcase(opts):
     testcase = opts.getString('testcase', 'w6')
     testcase_opts = PETSc.Options('testcase_')
-    if testcase == 'w6':
+    if testcase == 'w5':
+        return W5Testcase(testcase_opts)
+    elif testcase == 'w6':
         return W6Testcase(testcase_opts)
     else:
         raise NotImplementedError('testcase '+testcase)
