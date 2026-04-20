@@ -27,7 +27,8 @@ class BaseTestcase:
         nrefs - int, set the number of mesh refinement levels
         starpatch - if present, extends the halos to accommodate star patches.
         """
-        
+
+
 class W5Testcase(BaseTestcase):
     def __init__(self, opts):
         super().__init__(opts)
@@ -62,29 +63,29 @@ class W5Testcase(BaseTestcase):
         and bathymetry b
         """
 
-        x = fd.SpatialCoordinate(self.mesh)
+        x, y, z = fd.SpatialCoordinate(self.mesh)
         u_0 = 20.0  # maximum amplitude of the zonal wind [m/s]
         u_max = fd.Constant(u_0)
         R0 = self.R0
         Omega = self.Omega
         g = self.g
         H = self.H
-        u_expr = fd.as_vector([-u_max*x[1]/R0, u_max*x[0]/R0, 0.0])
-        eta_expr = - ((R0 * Omega * u_max + u_max*u_max/2.0)*(x[2]*x[2]/(R0*R0)))/g
+        u_expr = fd.as_vector([-u_max*y/R0, u_max*x/R0, 0.0])
+        eta_expr = - ((R0*Omega*u_max + u_max*u_max/2.0)*(z*z/(R0*R0)))/g
         # Topography.
         rl = fd.pi/9.0
-        lambda_x = fd.atan2(x[1]/R0, x[0]/R0)
+        lambda_x = fd.atan2(y/R0, x/R0)
         lambda_c = -fd.pi/2.0
-        phi_x = fd.asin(x[2]/R0)
+        phi_x = fd.asin(z/R0)
         phi_c = fd.pi/6.0
         minarg = fd.min_value(pow(rl, 2),
-                              pow(phi_x - phi_c, 2) + pow(lambda_x - lambda_c, 2))
+                              pow(phi_x-phi_c, 2) + pow(lambda_x-lambda_c, 2))
         bexpr = 2000.0*(1 - fd.sqrt(minarg)/rl)
         model.b.interpolate(bexpr)
         model.u0.interpolate(u_expr)
         model.D0.interpolate(eta_expr + H - bexpr)
 
-    
+
 class W6Testcase(BaseTestcase):
     def __init__(self, opts):
         super().__init__(opts)
