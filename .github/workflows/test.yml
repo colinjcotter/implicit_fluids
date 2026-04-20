@@ -36,6 +36,7 @@ jobs:
         run: python3 -m venv --system-site-packages venv
 
       - name: Install package
+        id: install
         run: |
           . venv/bin/activate
           python -m pip install './repo[lint,test]'
@@ -43,10 +44,14 @@ jobs:
 
       - name: Run lint
         run: |
+          # run from repo directory to pick up any linting configs
           . venv/bin/activate
-          python -m flake8 ./repo
+          cd ./repo
+          python -m flake8 .
 
       - name: Run tests
+        # Run even if linting failed
+        if: success() || steps.install.conclusion == 'success'
         run: |
           . venv/bin/activate
           python -m pytest -v -n 6 --durations=40 --timeout=600 --cov=./repo/implicit_fluids --cov-report=term ./repo/tests/
