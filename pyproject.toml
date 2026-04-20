@@ -13,7 +13,7 @@ classifiers = [
   "Programming Language :: Python",
 ]
 dependencies = [
-   "pandas"
+   "pandas",
    "irksome @ git+https://github.com/firedrakeproject/Irksome.git@master",
 ]
 
