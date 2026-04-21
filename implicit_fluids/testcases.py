@@ -2,7 +2,6 @@ import abc
 import firedrake as fd
 from firedrake.petsc import PETSc
 
-
 class BaseTestcase:
     """
     Base class for testcases.
@@ -35,10 +34,14 @@ class W5Testcase(BaseTestcase):
         self.Omega = 7.292e-5
         self.g = 9.8
         self.H = 5960.
-
+        
     def get_mesh(self):
         nrefs = self.opts.getInt(
             'mesh_nrefs', 5)
+        baseref = self.opts.getInt(
+            'mesh_baseref', 5)
+        refsperlevel = self.opts.getInt(
+            'mesh_refsperlevel', 1)
         starpatch = self.opts.hasName('mesh_starpatch')
         if starpatch:
             dps = {

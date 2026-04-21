@@ -153,7 +153,7 @@ class BaseSWEModel(BaseModel):
             "energy": energy
         }
         return diagnostics
-
+    
 
 class GSWEModel(BaseSWEModel):
     """
@@ -278,6 +278,93 @@ class GSWEModel(BaseSWEModel):
         self.u0.interpolate(u)
         return super().output()
 
+class GSWEModel(BaseSWEModel):
+    def build_eqn(self):
+        mesh = self.mesh
+        W = self.W
+        dU = fd.TestFunction(W)
+        du = dU[0, :]
+        dG = dU[1, :]
+        u = self._U0[0, :]
+        G = self._U0[1, :]
+
+        x = fd.SpatialCoordinate(mesh)
+        cx, cy, cz = x
+
+        # Earth parameters
+        testcase = self.testcase
+        Omega = fd.Constant(testcase.Omega)
+        f = 2*Omega*cz/fd.Constant(testcase.R0) # CHANGE
+        g = fd.Constant(testcase.g)
+        H = fd.Constant(testcase.H)
+        self.H = H
+        b = self.b
+        n = fd.FacetNormal(mesh)
+
+        # D = H - div(G)
+        # G_t + u*(div(G)-H) = 0
+        # therefore
+        # D_t = -div(G_t) = div(u*(div(G)-H)) = -div(u*D)
+        # ie D_t + div(u*D) = 0
+        D = H - fd.div(G)
+        if self.opts.hasName("projection"):
+            F = Dt(Ghat)
+            ubar = F/Dhat
+        else:
+            ubar = uhat
+
+        from firedrake import inner, dot, grad, \
+            dS, dx, div, sign
+
+        perp = get_perp(mesh)
+
+        #physical domain
+        #<V, U_t + LU> = 0
+        #change variables: map X -> Phi_t^{-1}X = Xhat
+        #pullbacks
+        #< Vhat, Uhat_t + (LU)hat > = 0 (*)
+        #discretise (*) on a (fixed) mesh
+
+        #what changes when we pull back?
+        # solution fields u,G [Hdiv]
+        # test fields du,dG [Hdiv]
+        # normals
+        # grad, div
+        # dx, dS
+        # f, and b
+
+        # pullback stuff
+        fhat = ???
+        bhat = ???
+        dxhat = det(J)*dx
+        dShat = ???
+        nhat = ???
+        perp = ???
+
+        # u equation
+        centred = self.opts.hasName("centred")
+        if centred:
+            Upwind = 0.5
+        else:
+            Upwind = 0.5 * (sign(dot(uhat, nhat)) + 1)
+        eqn = inner(duhat, Dt(uhat))*dxhat
+        eqn -= inner(perp(gradhat(inner(duhat, perp(ubar)))), uhat)*dxhat
+        eqn += inner(both(perp(nhat)*inner(duhat, perp(ubar))),
+                     both(Upwind*uhat))*dShat
+        eqn += inner(du, fhat*perp(ubar))*dx # doesn't need pullback
+        eqn -= div(du)*(
+            inner(uhat, uhat)/2 
+            + g*(D+bhat) 
+        )*dx # doesn't need pullback
+        # div(du)*scalar*dx also doesn't pulling back
+        # u.n*scalar*dS doesn't need pulling back
+
+        # G equation
+        # G_t + u*(div(G)-H) = 0
+        eqn += fd.inner(dGhat, Dt(Ghat))*dxhat
+        eqn += fd.inner(dGhat, -uhat*D)*dxhat
+        self._eqn = eqn    
+    
 
 def get_model(opts):
     testcase = get_testcase(opts)

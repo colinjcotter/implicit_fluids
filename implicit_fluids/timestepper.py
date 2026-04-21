@@ -3,6 +3,7 @@ from implicit_fluids.models import get_model
 from implicit_fluids.steppers import get_stepper
 from math import fabs
 from firedrake import ProgressBar, VTKFile, CheckpointFile
+from sphere_tools import ManifoldTransfer
 import pandas as pd
 
 opts = PETSc.Options()
