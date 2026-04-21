@@ -24,6 +24,7 @@ class BaseModel:
         self.mesh = testcase.get_mesh()
         self.testcase = testcase
         self.opts = opts
+        self.t = None
         self.allocate()
         self.build_eqn()
         self.set_initial_conditions()
@@ -278,7 +279,7 @@ class GSWEModel(BaseSWEModel):
         self.u0.interpolate(u)
         return super().output()
 
-class GSWEModel(BaseSWEModel):
+class MovingGSWEModel(GSWEModel):
     def build_eqn(self):
         mesh = self.mesh
         W = self.W
@@ -294,7 +295,6 @@ class GSWEModel(BaseSWEModel):
         # Earth parameters
         testcase = self.testcase
         Omega = fd.Constant(testcase.Omega)
-        f = 2*Omega*cz/fd.Constant(testcase.R0) # CHANGE
         g = fd.Constant(testcase.g)
         H = fd.Constant(testcase.H)
         self.H = H
@@ -333,13 +333,18 @@ class GSWEModel(BaseSWEModel):
         # dx, dS
         # f, and b
 
+        #Phi0 - VFS, Phi1 - VFS
+        Phi = Phi0 + (t-t0)*(Phi1 - Phi0)
+        J = grad(Phi) # just works
+        detJ = det(J) # just works?
+        
         # pullback stuff
-        fhat = ???
-        bhat = ???
-        dxhat = det(J)*dx
+        fhat = 2*Omega*Phi[2]/fd.Constant(testcase.R0)
+        bhat = ??? # tricky because testcase specific - need to add get_b?
+        dxhat = detJ*dx
         dShat = ???
         nhat = ???
-        perp = ???
+        perp = ??? # get_moving_perp - just use Phi/|Phi| as k?
 
         # u equation
         centred = self.opts.hasName("centred")

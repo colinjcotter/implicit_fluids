@@ -30,7 +30,10 @@ def get_stepper(model, opts):
 
     MC = MeshConstant(model.mesh)
     dT = MC.Constant(1.)
-    t = MC.Constant(0.)
+    if model.t:
+        t = model.t
+    else:
+        t = MC.Constant(0.)
     U0 = model.U0()
     eqn = model.eqn()
     return TimeStepper(eqn, method, t, dT, U0,
