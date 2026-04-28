@@ -343,7 +343,8 @@ class MovingGSWEModel(GSWEModel):
         bhat = ??? # tricky because testcase specific - need to add get_b?
         dxhat = detJ*dx
         dShat = ???
-        nhat = ???
+        nhat = ??? # has zero tangential component so is in Hcurl,
+        # so need Hcurl pullback and need to normalise
         perp = ??? # get_moving_perp - just use Phi/|Phi| as k?
 
         # u equation
