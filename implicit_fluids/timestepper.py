@@ -2,7 +2,7 @@ from firedrake.petsc import PETSc
 from implicit_fluids.models import get_model
 from implicit_fluids.steppers import get_stepper
 from math import fabs
-from firedrake import ProgressBar, VTKFile, CheckpointFile
+from firedrake import ProgressBar, VTKFile, CheckpointFile, assemble
 import pandas as pd
 
 opts = PETSc.Options()
@@ -56,6 +56,12 @@ def run(options_dictionary={}):
         diagnostics[key] = [value]
 
     for step in ProgressBar('Timestep').iter(range(nsteps)):
+        #stepper.stages.zero()
+        F = stepper.solver._problem.F
+        with assemble(F).dat.vec_ro as vec:
+            res0 = vec.norm()
+        snes_rtol = stepper.solver.snes.rtol
+        stepper.solver.snes.ksp.atol = 0.1*snes_rtol*res0
         stepper.advance()
         t.assign(float(t) + float(dt))
 
