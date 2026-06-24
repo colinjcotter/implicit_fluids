@@ -56,12 +56,14 @@ def run(options_dictionary={}):
         diagnostics[key] = [value]
 
     for step in ProgressBar('Timestep').iter(range(nsteps)):
-        #stepper.stages.zero()
-        F = stepper.solver._problem.F
-        with assemble(F).dat.vec_ro as vec:
-            res0 = vec.norm()
-        snes_rtol = stepper.solver.snes.rtol
-        stepper.solver.snes.ksp.atol = 0.1*snes_rtol*res0
+        # set absolute tolerance automatically for ew
+        if opts.hasName("stepper_snes_ksp_ew"):
+            F = stepper.solver._problem.F
+            with assemble(F).dat.vec_ro as vec:
+                res0 = vec.norm()
+            snes_rtol = stepper.solver.snes.rtol
+            stepper.solver.snes.ksp.atol = 0.1*snes_rtol*res0
+
         stepper.advance()
         t.assign(float(t) + float(dt))
 
