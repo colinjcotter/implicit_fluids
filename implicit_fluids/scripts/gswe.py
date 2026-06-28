@@ -3,6 +3,7 @@ from implicit_fluids.testcases import get_testcase
 from implicit_fluids.models import GSWEModel
 from firedrake.petsc import PETSc
 
+
 def gswe(options_dictionary={}):
     opts = PETSc.Options()
     for k, v in options_dictionary.items():

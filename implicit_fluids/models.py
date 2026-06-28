@@ -2,7 +2,6 @@ import abc
 import firedrake as fd
 from irksome import Dt
 from math import fabs
-from implicit_fluids.testcases import get_testcase
 
 
 def both(u):
