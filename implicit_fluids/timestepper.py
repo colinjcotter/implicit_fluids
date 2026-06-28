@@ -1,5 +1,4 @@
 from firedrake.petsc import PETSc
-from implicit_fluids.models import get_model
 from implicit_fluids.steppers import get_stepper
 from math import fabs
 from firedrake import ProgressBar, VTKFile, CheckpointFile, assemble
