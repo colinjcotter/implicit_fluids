@@ -1,4 +1,4 @@
-from implicit_fluids import timestepper as ts
+from implicit_fluids import gswe
 from math import fabs
 
 
@@ -18,7 +18,7 @@ def test_energy():
             "testcase_mesh_nrefs": 3,
             "testcase": "w6"
             }
-    diagnostics = ts.run(opts)
+    diagnostics = gswe(opts)
     energy = diagnostics["energy"]
     energy_error = (energy[-1]-energy[0])/energy[0]
     assert fabs(energy_error) < 1.0e-4  # larger than expected energy error

@@ -8,7 +8,10 @@ def gswe(options_dictionary={}):
     for k, v in options_dictionary.items():
         opts[k] = v
 
+    testcase = get_testcase(opts)
     model_opts = PETSc.Options('model_')
-    testcase = get_testcase(model_opts)
     model = GSWEModel(testcase, model_opts)
-    run(model)
+    diagnostics = run(model)
+
+    if options_dictionary:
+        return diagnostics
