@@ -17,6 +17,9 @@ dependencies = [
    "irksome @ git+https://github.com/firedrakeproject/Irksome.git@master",
 ]
 
+[project.scripts]
+if-gswe = "implicit_fluids:gswe"
+
 [project.optional-dependencies]
 lint = [
   "flake8",
