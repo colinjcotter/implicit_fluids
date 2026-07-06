@@ -1,21 +1,14 @@
 from firedrake.petsc import PETSc
-from implicit_fluids.models import get_model
 from implicit_fluids.steppers import get_stepper
 from math import fabs
 from firedrake import ProgressBar, VTKFile, CheckpointFile, assemble
 import pandas as pd
 
-opts = PETSc.Options()
 print = PETSc.Sys.Print
 
 
-def run(options_dictionary={}):
+def run(model):
     opts = PETSc.Options()
-    for k, v in options_dictionary.items():
-        opts[k] = v
-    model_opts = PETSc.Options('model_')
-    model = get_model(model_opts)
-
     dt = opts.getScalar('model_dt', 1.0)
     tmax = opts.getScalar('model_tmax', 1.0)
     nsteps = int(tmax/dt)

@@ -2,7 +2,6 @@ import abc
 import firedrake as fd
 from irksome import Dt
 from math import fabs
-from implicit_fluids.testcases import get_testcase
 
 
 def both(u):
@@ -277,18 +276,3 @@ class GSWEModel(BaseSWEModel):
         self.D0.interpolate(D)
         self.u0.interpolate(u)
         return super().output()
-
-
-def get_model(opts):
-    testcase = get_testcase(opts)
-    model_type = opts.getString('type', 'swe')
-    model_variant = opts.getString('variant', 'G')
-
-    if model_type == 'swe':
-        if model_variant == 'G':
-            model = GSWEModel(testcase, opts)
-        else:
-            raise NotImplementedError('variant ='+model_variant)
-    else:
-        raise NotImplementedError('type='+model_type)
-    return model
