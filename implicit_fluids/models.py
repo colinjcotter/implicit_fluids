@@ -9,9 +9,8 @@ def both(u):
     return 2*fd.avg(u)
 
 
-def get_perp(mesh):
+def get_perp(mesh, outward_normals=fd.CellNormal(mesh)):
     def perp(u):
-        outward_normals = fd.CellNormal(mesh)
         return fd.cross(outward_normals, u)
     return perp
 
@@ -284,7 +283,7 @@ class MovingGSWEModel(GSWEModel):
         mesh = self.mesh
         W = self.W
         dU = fd.TestFunction(W)
-        du = dU[0, :]
+        du = dU[0, :] Let's call this duhat and so on
         dG = dU[1, :]
         u = self._U0[0, :]
         G = self._U0[1, :]
@@ -337,16 +336,41 @@ class MovingGSWEModel(GSWEModel):
         Phi = Phi0 + (t-t0)*(Phi1 - Phi0)
         J = grad(Phi) # just works
         detJ = det(J) # just works?
+
+        perphat = get_perp(mesh, Phi/sqrt(inner(Phi, Phi)))
         
         # pullback stuff
         fhat = 2*Omega*Phi[2]/fd.Constant(testcase.R0)
         bhat = ??? # tricky because testcase specific - need to add get_b?
         dxhat = detJ*dx
         dShat = ???
+        gradhat = ???
         nhat = ??? # has zero tangential component so is in Hcurl,
         # so need Hcurl pullback and need to normalise
         perp = ??? # get_moving_perp - just use Phi/|Phi| as k?
 
+        # \int_{\partial e} n^\perp (w\cdot u^\perp) cdot \tilde{u} \diff S
+        # =-\int_{\partial e} (w\cdot u^\perp) \tilde{u}^\perp\cdot n\diff S
+        # =-\int_{\partial e} v\cdot n\diff S
+        # If v was an Hdiv field, then we wouldn't need any pullbacks
+        # but it is not,
+        # if it was, v(g_e(xi)) = J^T vhat/det J
+        # if J is invertible, J^{-T}v*detJ
+        # integral becomes -\int_{\partial e} J^{-T}v*det J\cdot n\diff S
+        # pseudoinverse, J^{-1} = (J^TJ)^{-1}J^T
+        # J^{-T} = J(J^TJ)^{-1}
+        # v = (duhat\cdot uhat^\perphat) J(J^TJ)^{-1}\tilde{u}^\perp*detJ
+        #eqn += inner(both(perp(nhat)*inner(duhat, perp(ubar))),
+        #             both(Upwind*uhat))*dShat
+        # becomes
+        # eqn += inner(duhat, perphat(uhat))*inner(dot(J, dot(inv(dot(J.T, J)),
+        #        perphat(ubar))), n)*dS
+        # which we wrote as 
+        # eqn += inner(both(perphat(n)*inner(duhat, perphat(ubar))),
+        #             both(Upwind*inner(dot(J, dot(inv(dot(J.T, J)),
+        #                                          uhat)))))*dS
+
+        
         # u equation
         centred = self.opts.hasName("centred")
         if centred:
@@ -355,8 +379,10 @@ class MovingGSWEModel(GSWEModel):
             Upwind = 0.5 * (sign(dot(uhat, nhat)) + 1)
         eqn = inner(duhat, Dt(uhat))*dxhat
         eqn -= inner(perp(gradhat(inner(duhat, perp(ubar)))), uhat)*dxhat
-        eqn += inner(both(perp(nhat)*inner(duhat, perp(ubar))),
-                     both(Upwind*uhat))*dShat
+        eqn += inner(both(perphat(n)*inner(duhat, perphat(ubar))),
+                     both(Upwind*inner(dot(J, dot(inv(dot(J.T, J)),
+                                                  uhat)))))*dS
+
         eqn += inner(du, fhat*perp(ubar))*dx # doesn't need pullback
         eqn -= div(du)*(
             inner(uhat, uhat)/2 
