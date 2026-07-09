@@ -94,11 +94,11 @@ def MGIcosahedralSphereMesh(radius,
 
     dps = distribution_parameters
     basemesh = fd.IcosahedralSphereMesh(radius=radius,
-                                        refinement_level=refinement_level,
+                                        refinement_level=base_level,
                                         degree=degree,
                                         distribution_parameters=dps)
     del basemesh._radius
-    mh = fd.MeshHierarchy(basemesh, refinement_level)
+    mh = fd.MeshHierarchy(basemesh, refinement_level-base_level)
     meshes = []
     for m in mh:
         X = fd.VectorFunctionSpace(m, "Lagrange", degree)
@@ -150,8 +150,8 @@ class W6Testcase(BaseTestcase):
                                             refinement_level=nrefs,
                                             degree=meshdeg,
                                             distribution_parameters=dps)
-        x = fd.SpatialCoordinate(mesh)
-        mesh.init_cell_orientations(x)
+            x = fd.SpatialCoordinate(mesh)
+            mesh.init_cell_orientations(x)
         self.mesh = mesh
         return mesh
 

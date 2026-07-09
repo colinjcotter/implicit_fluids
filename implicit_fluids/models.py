@@ -206,6 +206,10 @@ class GSWEModel(BaseSWEModel):
 
         from firedrake import inner, dot, grad, \
             dS, dx, div, sign
+        if opts.hasName("quadrature_degree"):
+            degree = opts.getInt("quadrature_degree")
+            dx = dx(degree=degree)
+            self.dx = dx
 
         perp = get_perp(mesh)
 
@@ -226,8 +230,8 @@ class GSWEModel(BaseSWEModel):
 
         # G equation
         # G_t + u*(div(G)-H) = 0
-        eqn += fd.inner(dG, Dt(G))*fd.dx
-        eqn += fd.inner(dG, -u*D)*fd.dx
+        eqn += fd.inner(dG, Dt(G))*dx
+        eqn += fd.inner(dG, -u*D)*dx
         self._eqn = eqn
 
     def set_initial_conditions(self):
@@ -235,15 +239,15 @@ class GSWEModel(BaseSWEModel):
         # Elliptic problem to get G st D = H - div(G)
         WG = self.V * self.Q
         One = fd.Function(self.Q).assign(1.0)
-        H = fd.assemble(self.D0*fd.dx)/fd.assemble(One*fd.dx)
+        H = fd.assemble(self.D0*self.dx)/fd.assemble(One*self.dx)
         self.H.assign(H)
-        assert fabs(fd.assemble((H-self.D0)*fd.dx)
-                    )/fd.assemble(One*fd.dx) < 1.0e-7
+        assert fabs(fd.assemble((H-self.D0)*self.dx)
+                    )/fd.assemble(One*self.dx) < 1.0e-7
         H = self.H
         uG, phi = fd.TrialFunctions(WG)
         v, q = fd.TestFunctions(WG)
         eqn = (fd.inner(uG, v) - fd.div(v)*phi
-               + q*(fd.div(uG) + (self.D0 - H)))*fd.dx
+               + q*(fd.div(uG) + (self.D0 - H)))*self.dx
         v_basis = fd.VectorSpaceBasis(constant=True, comm=fd.COMM_WORLD)
         nullspace = fd.MixedVectorSpaceBasis(WG, [WG.sub(0), v_basis])
         UG = fd.Function(WG)
@@ -266,7 +270,13 @@ class GSWEModel(BaseSWEModel):
         uG, p = UG.subfunctions
         self._U0.interpolate(fd.as_tensor([self.u0, uG]))
         G = self._U0[1, :]
-        res = fd.norm(fd.div(G) + (- H + self.D0))/fd.norm(One)
+        Dtest = fd.Function(self.Q)
+        if opts.hasName("quadrature_degree"):
+            degree = opts.getInt("quadrature_degree")
+            Dtest.project(H - fd.div(G), quadrature_degree=degree)
+        else:
+            Dtest.project(H - fd.div(G))
+        res = fd.norm(Dtest - self.D0)/fd.norm(One)
         assert res < 1.0e-8, res
 
     def output(self):
