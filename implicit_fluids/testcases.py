@@ -86,6 +86,37 @@ class W5Testcase(BaseTestcase):
         model.D0.interpolate(eta_expr + H - bexpr)
 
 
+def MGIcosahedralSphereMesh(radius,
+                            refinement_level,
+                            base_level,
+                            degree,
+                            distribution_parameters):
+
+    dps = distribution_parameters
+    basemesh = fd.IcosahedralSphereMesh(radius=radius,
+                                        refinement_level=refinement_level,
+                                        degree=degree,
+                                        distribution_parameters=dps)
+    del basemesh._radius
+    mh = fd.MeshHierarchy(basemesh, refinement_level)
+    meshes = []
+    for m in mh:
+        X = fd.VectorFunctionSpace(m, "Lagrange", degree)
+        new_coords = fd.Function(X).interpolate(m.coordinates)
+        x, y, z = new_coords
+        r = (x**2 + y**2 + z**2)**0.5
+        new_coords = fd.Function(X).interpolate(radius*new_coords/r)
+        new_mesh = fd.Mesh(new_coords, name="errormesh")
+        x = fd.SpatialCoordinate(new_mesh)
+        new_mesh.init_cell_orientations(x)
+        meshes.append(new_mesh)
+
+    mh = fd.HierarchyBase(meshes, mh.coarse_to_fine_cells,
+                          mh.fine_to_coarse_cells,
+                          mh.refinements_per_level, mh.nested)
+    return mh[-1]
+
+
 class W6Testcase(BaseTestcase):
     def __init__(self, opts):
         super().__init__(opts)
@@ -106,10 +137,19 @@ class W6Testcase(BaseTestcase):
                 (fd.DistributedMeshOverlapType.VERTEX, 2)}
         else:
             dps = None
-        mesh = fd.IcosahedralSphereMesh(radius=self.R0,
-                                        refinement_level=nrefs,
-                                        degree=1,
-                                        distribution_parameters=dps)
+        baserefs = self.opts.getInt('mesh_baserefs', nrefs)
+        meshdeg = self.opts.getInt('mesh_degree', 2)
+        if nrefs > baserefs:
+            mesh = MGIcosahedralSphereMesh(radius=self.R0,
+                                           refinement_level=nrefs,
+                                           base_level=baserefs,
+                                           degree=meshdeg,
+                                           distribution_parameters=dps)
+        else:
+            mesh = fd.IcosahedralSphereMesh(radius=self.R0,
+                                            refinement_level=nrefs,
+                                            degree=meshdeg,
+                                            distribution_parameters=dps)
         x = fd.SpatialCoordinate(mesh)
         mesh.init_cell_orientations(x)
         self.mesh = mesh
