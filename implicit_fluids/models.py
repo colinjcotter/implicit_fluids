@@ -206,8 +206,8 @@ class GSWEModel(BaseSWEModel):
 
         from firedrake import inner, dot, grad, \
             dS, dx, div, sign
-        if opts.hasName("quadrature_degree"):
-            degree = opts.getInt("quadrature_degree")
+        if self.opts.hasName("quadrature_degree"):
+            degree = self.opts.getInt("quadrature_degree")
             dx = dx(degree=degree)
             self.dx = dx
 
@@ -271,8 +271,8 @@ class GSWEModel(BaseSWEModel):
         self._U0.interpolate(fd.as_tensor([self.u0, uG]))
         G = self._U0[1, :]
         Dtest = fd.Function(self.Q)
-        if opts.hasName("quadrature_degree"):
-            degree = opts.getInt("quadrature_degree")
+        if self.opts.hasName("quadrature_degree"):
+            degree = self.opts.getInt("quadrature_degree")
             Dtest.project(H - fd.div(G), quadrature_degree=degree)
         else:
             Dtest.project(H - fd.div(G))

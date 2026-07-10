@@ -6,7 +6,6 @@ import pandas as pd
 
 print = PETSc.Sys.Print
 
-
 def run(model):
     opts = PETSc.Options()
     dt = opts.getScalar('model_dt', 1.0)
