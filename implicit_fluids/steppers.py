@@ -1,13 +1,14 @@
 from irksome import (
     ContinuousPetrovGalerkinScheme,
     GalerkinCollocationScheme,
+    GaussLegendre, RadauIIA
     )
 from irksome import MeshConstant, TimeStepper
 
 
 def get_stepper(model, opts):
-    timestepper = opts.getString('time_method', 'galerkin')
-    if timestepper == 'galerkin':
+    method = opts.getString('time_method', 'galerkin')
+    if method == 'galerkin':
         if opts.hasName('time_basis_type'):
             basis_type = opts.getString('time_basis_type')
         else:
@@ -38,8 +39,17 @@ def get_stepper(model, opts):
                 max_quadrature_degree=quadrature_degree)
         else:
             raise NotImplementedError('time_variant '+time_variant)
+    elif method == "collocation":
+        nstages = opts.getInt("nstages", 1)
+        variant = opts.getString("variant", "gl")
+        if variant == "gl":
+            method = GaussLegendre(nstages)
+        elif variant == "rIIA":
+            method = RadauIIA(nstages)
+        else:
+            raise NotImplementedError('time_variant '+variant)
     else:
-        raise NotImplementedError('timestepper '+timestepper)
+        raise NotImplementedError('method '+method)
 
     MC = MeshConstant(model.mesh)
     dT = MC.Constant(1.)
