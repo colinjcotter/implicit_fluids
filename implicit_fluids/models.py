@@ -209,7 +209,9 @@ class GSWEModel(BaseSWEModel):
         if self.opts.hasName("quadrature_degree"):
             degree = self.opts.getInt("quadrature_degree")
             dx = dx(degree=degree)
+            dS = dS(degree=degree)
             self.dx = dx
+            self.dS = dS
 
         perp = get_perp(mesh)
 

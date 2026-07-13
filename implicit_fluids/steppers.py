@@ -30,7 +30,6 @@ def get_stepper(model, opts):
                 quadrature_degree=quadrature_degree,
                 quadrature_scheme=quadrature_scheme)
         elif time_variant == 'collocation':
-            print(time_order, quadrature_degree, quadrature_scheme)
             method = GalerkinCollocationScheme(
                 order=time_order,
                 stage_type="deriv",

@@ -91,7 +91,6 @@ def MGIcosahedralSphereMesh(radius,
                             base_level,
                             degree,
                             distribution_parameters):
-
     dps = distribution_parameters
     basemesh = fd.IcosahedralSphereMesh(radius=radius,
                                         refinement_level=base_level,
